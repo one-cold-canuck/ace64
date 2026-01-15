@@ -1,15 +1,20 @@
 #include "cpu.h"
 #include <stdio.h>
 
-void InitializeMemory(CPU *cpu) {
-  for (Uint32 i = 0; i < MAX_MEMORY; i++) {
-    cpu->Memory[i] = 0;
-  }
+void
+initialize_memory (CPU *cpu)
+{
+  for (Uint32 i = 0; i < MAX_MEMORY; i++)
+    {
+      cpu->Memory[i] = 0;
+    }
   cpu->Memory[0x00] = 0xFF;
   cpu->Memory[0x01] = 0x07;
 }
 
-void Reset(CPU *cpu) {
+void
+reset (CPU *cpu)
+{
   cpu->PC = 0xFFFC;
   cpu->SP = 0xFF;
 
@@ -19,13 +24,15 @@ void Reset(CPU *cpu) {
 
   cpu->P = 0b00000000;
 
-  InitializeMemory(cpu);
+  initialize_memory (cpu);
 }
 
-Byte FetchByte(CPU *cpu, Sint32 *Cycles) {
+Byte
+fetch_byte (CPU *cpu, Sint32 *cycles)
+{
   Byte Data = cpu->Memory[cpu->PC];
   cpu->PC++;
-  *Cycles += 1;
+  *cycles += 1;
   return (Data);
 }
 
@@ -33,51 +40,65 @@ Byte FetchByte(CPU *cpu, Sint32 *Cycles) {
 // Would it be better to just increment the Cycle count and the PC register?
 //  Pros: don't need this function, just increment
 //  Cons: This more accurately describes what is happening.
-void BurnByte(CPU *cpu, Sint32 *Cycles) {
-  Byte Data = cpu->Memory[cpu->PC];
+void
+burn_byte (CPU *cpu, Sint32 *cycles)
+{
+  Byte data = cpu->Memory[cpu->PC];
   cpu->PC++;
-  *Cycles += 1;
+  *cycles += 1;
 }
 
-Word FetchWord(CPU *cpu, Sint32 *Cycles) {
-  Word Data = cpu->Memory[cpu->PC];
+Word
+fetch_word (CPU *cpu, Sint32 *cycles)
+{
+  Word data = cpu->Memory[cpu->PC];
   cpu->PC++;
 
-  *Cycles += 1;
-  Data |= (cpu->Memory[cpu->PC] << 8);
+  *cycles += 1;
+  data |= (cpu->Memory[cpu->PC] << 8);
   cpu->PC++;
 
-  *Cycles += 1;
-  return (Data);
+  *cycles += 1;
+  return (data);
 }
 
 // TODO: Ensure a Byte passed to this function has only the Low Byte set.
-Byte ReadByte(CPU *cpu, Word Address, Sint32 *Cycles) {
-  Byte Data = cpu->Memory[Address];
-  *Cycles += 1;
+Byte
+read_byte (CPU *cpu, Word address, Sint32 *cycles)
+{
+  Byte data = cpu->Memory[address];
+  *cycles += 1;
+  return (data);
+}
+
+Word
+read_word (CPU *cpu, Byte address, Sint32 *cycles)
+{
+  Word Data = cpu->Memory[address];
+  *cycles += 1;
+  Data = cpu->Memory[address + 1] << 8;
+  *cycles += 1;
+
   return (Data);
 }
-
-Word ReadWord(CPU *cpu, Byte Address, Sint32 *Cycles) {
-  Word Data = cpu->Memory[Address];
-  *Cycles += 1;
-  Data = cpu->Memory[Address + 1] << 8;
-  *Cycles += 1;
-
-  return (Data);
-}
-void WriteByte(CPU *cpu, Word Address, Byte Value, Sint32 *Cycles) {
-  cpu->Memory[Address] = Value;
-  *Cycles += 1;
+void
+write_byte (CPU *cpu, Word address, Byte value, Sint32 *cycles)
+{
+  cpu->Memory[address] = value;
+  *cycles += 1;
 }
 
-void WriteWord(CPU *cpu, Word Value, Byte Address, Sint32 *Cycles) {
-  cpu->Memory[Address] = Value & 0xFF;
-  cpu->Memory[Address - 1] = (Value >> 8);
-  *Cycles += 2;
+void
+write_word (CPU *cpu, Word value, Byte address, Sint32 *cycles)
+{
+  cpu->Memory[address] = value & 0xFF;
+  cpu->Memory[address - 1] = (value >> 8);
+  *cycles += 2;
 }
 
-void SetStatusFlag(Byte *flags, Byte *Value) {
+void
+set_status_flag (Byte *flags, Byte *value)
+{
   /* TODO: Implement MOS 6510 System Reset routine
    * From documentation:
    * ; Reset vector (Kernel address $FFFC) points here.
@@ -101,786 +122,698 @@ void SetStatusFlag(Byte *flags, Byte *Value) {
    * FCFE  58        CLI             ; clear interrupt flag FCFF  6C 00 A0
    * JMP ($A000)                     ; direct to BASIC cold start via vector
    */
-  if (*Value == 0) {
-    *flags |= FLAG_ZERO;
-  }
-  *flags |= (*Value & FLAG_NEGATIVE);
+  if (*value == 0)
+    {
+      *flags |= FLAG_ZERO;
+    }
+  *flags |= (*value & FLAG_NEGATIVE);
 }
 
-Word GetWordAddress(Byte LoByte, Byte HiByte) {
-  Word Address = LoByte + (HiByte << 8);
-  return Address;
+Word
+get_word_address (Byte loByte, Byte hiByte)
+{
+  Word address = loByte + (hiByte << 8);
+  return address;
 }
 
-// TODO:  If we want to emulate something cycle exact, we would want these instructions
-// to be designed in a way that there are discrete steps:
+// TODO:  If we want to emulate something cycle exact, we would want these
+// instructions to be designed in a way that there are discrete steps:
 //        - Cycle 1: Get instruction from the Program Counter
-//        - Cycle 2..# Perform the next single action (Read a byte, transfer a register, increment, etc)
+//        - Cycle 2..# Perform the next single action (Read a byte, transfer a
+//        register, increment, etc)
 //
-//       In order to do this, we will need to figure out a way to either queue the individual actions after
-//       the instruction is pulled, or a way to tell the Instruction case which cycle we are on.
+//       In order to do this, we will need to figure out a way to either queue
+//       the individual actions after the instruction is pulled, or a way to
+//       tell the Instruction case which cycle we are on.
 //
 //       Other considerations:
-//        - We have a fixed number of addressing modes.  With the exception of a few details, every
+//        - We have a fixed number of addressing modes.  With the exception of
+//        a few details, every
 //          instruction takes the same steps in each addressing mode.
-Sint32 Execute(CPU *cpu) {
+Sint32
+execute (CPU *cpu)
+{
 
-  Sint32 Cycles = 0;
+  Sint32 cycles = 0;
 
-  Byte instruction = FetchByte(cpu, &Cycles); // One cycle
-  switch (instruction) {
-    /****************************************
-     * Implied Addressing
-     ****************************************
-     *
-     * Transfer from one register to the other
-     */
+  Byte instruction = fetch_byte (cpu, &cycles); // One cycle
+  switch (instruction)
+    {
 
-  case INS_TAX: {
-    BurnByte(cpu, &Cycles);
-    cpu->X = cpu->A;
-    SetStatusFlag(&cpu->P, &cpu->X);
-  } break;
-  case INS_TAY: {
-    BurnByte(cpu, &Cycles);
-    cpu->Y = cpu->A;
-    SetStatusFlag(&cpu->P, &cpu->Y);
-  } break;
-  case INS_TXA: {
-    BurnByte(cpu, &Cycles);
-    cpu->A = cpu->X;
-    SetStatusFlag(&cpu->P, &cpu->A);
-  } break;
-  case INS_TYA: {
-    BurnByte(cpu, &Cycles);
-    cpu->A = cpu->Y;
-    SetStatusFlag(&cpu->P, &cpu->A);
-  } break;
-  case INS_TSX: {
-    BurnByte(cpu, &Cycles);
-    cpu->X = cpu->SP;
-    SetStatusFlag(&cpu->P, &cpu->X);
-  } break;
-  case INS_TXS: {
-    BurnByte(cpu, &Cycles);
-    cpu->SP = cpu->X;
-  } break;
-  case INS_PHA: {
-    BurnByte(cpu, &Cycles);
-    Word Address = 0x0100 + cpu->SP;
-    WriteByte(cpu, Address, cpu->A, &Cycles);
-    cpu->SP--;
-  } break;
-  case INS_PHP: {
-    BurnByte(cpu, &Cycles);
-    Word Address = 0x0100 + cpu->SP;
-    WriteByte(cpu, Address, cpu->P, &Cycles);
-    cpu->SP--;
-  } break;
-  case INS_PLP: {
-    BurnByte(cpu, &Cycles);
-    cpu->SP++;
-    Cycles++;
-    Word Address = 0x0100 + cpu->SP;
-    cpu->P = ReadByte(cpu, Address, &Cycles);
-  } break;
-  case INS_PLA: {
-    BurnByte(cpu, &Cycles);
-    cpu->SP++;
-    Cycles++;
-    Word Address = 0x0100 + cpu->SP;
-    cpu->A = ReadByte(cpu, Address, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->A);
-  } break;
-  /****************************************
-   * Immediate Addressing
-   ***************************************
+    /* Jump Instructions */
+    case INS_JMP_ABS:
+      {
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
 
-    #  address R/W description
-   --- ------- --- ------------------------------------------
-    1    PC     R  fetch opcode, increment PC
-    2    PC     R  fetch value, increment PC
-   */
-  case INS_LDA_IM: {
-    Byte Value = FetchByte(cpu, &Cycles);
-    cpu->A = Value;
-    SetStatusFlag(&cpu->P, &cpu->A);
-  } break;
-  case INS_LDX_IM: {
-    Byte Value = FetchByte(cpu, &Cycles);
-    cpu->X = Value;
-    SetStatusFlag(&cpu->P, &cpu->X);
-  } break;
-  case INS_LDY_IM: {
-    Byte Value = FetchByte(cpu, &Cycles);
-    cpu->Y = Value;
-    SetStatusFlag(&cpu->P, &cpu->Y);
-  } break;
+        cpu->PC = get_word_address (loByte, hiByte);
+        cycles++;
+      }
+      break;
+    case INS_JMP_IND:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_JSR_ABS:
+      {
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
 
-    /****************************************
-     * Absolute Addressing
-     ****************************************
-    JMP
+        Word address = get_word_address (loByte, hiByte);
+        write_word (cpu, cpu->PC - 1, cpu->SP, &cycles);
+        cpu->SP -= 1;
+        cpu->PC = address;
+        cycles++;
+      }
+      break;
+    case INS_RTS:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_RTI:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
 
-      #  address R/W description
-     --- ------- --- -------------------------------------------------
-      1    PC     R  fetch opcode, increment PC
-      2    PC     R  fetch low address byte, increment PC
-      3    PC     R  copy low address byte to PCL, fetch high address
-                     byte to PCH
+    /* Math Instructions */
+    case INS_ADC_IM:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_ADC_ZP:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_ADC_ZPX:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_ADC_ABS:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_ADC_ABX:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_ADC_ABY:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_ADC_IDX:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_ADC_IDY:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_SBC_IM:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_SBC_ZP:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_SBC_ZPX:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_SBC_ABS:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_SBC_ABX:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_SBC_ABY:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_SBC_IDX:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_SBC_IDY:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
 
-    Read instructions (LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT,
-                      LAX, NOP)
+    case INS_TSX:
+      {
+        burn_byte (cpu, &cycles);
+        cpu->X = cpu->SP;
+        set_status_flag (&cpu->P, &cpu->X);
+      }
+      break;
+    case INS_TXS:
+      {
+        burn_byte (cpu, &cycles);
+        cpu->SP = cpu->X;
+      }
+      break;
+    case INS_PHA:
+      {
+        burn_byte (cpu, &cycles);
+        Word address = 0x0100 + cpu->SP;
+        write_byte (cpu, address, cpu->A, &cycles);
+        cpu->SP--;
+      }
+      break; case INS_PHP:
+      {
+        burn_byte (cpu, &cycles);
+        Word address = 0x0100 + cpu->SP;
+        write_byte (cpu, address, cpu->P, &cycles);
+        cpu->SP--;
+      }
+      break;
+    case INS_PLP:
+      {
+        burn_byte (cpu, &cycles);
+        cpu->SP++;
+        cycles++;
+        Word address = 0x0100 + cpu->SP;
+        cpu->P = read_byte (cpu, address, &cycles);
+      }
+      break;
+    case INS_PLA:
+      {
+        burn_byte (cpu, &cycles);
+        cpu->SP++;
+        cycles++;
+        Word address = 0x0100 + cpu->SP;
+        cpu->A = read_byte (cpu, address, &cycles);
+        set_status_flag (&cpu->P, &cpu->A);
+      }
+      break;
 
-      #  address R/W description
-     --- ------- --- ------------------------------------------
-      1    PC     R  fetch opcode, increment PC
-      2    PC     R  fetch low byte of address, increment PC
-      3    PC     R  fetch high byte of address, increment PC
-      4  address  R  read from effective address
+    case INS_LDA_IM:
+      {
+        Byte Value = fetch_byte (cpu, &cycles);
+        cpu->A = Value;
+        set_status_flag (&cpu->P, &cpu->A);
+      }
+      break;
+    case INS_LDA_ZP:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
+        cpu->A = read_byte (cpu, address, &cycles);
+        set_status_flag (&cpu->P, &cpu->A);
+      }
+      break;
+    case INS_LDA_ZPX:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
+        address = (address + cpu->X) & 0x00FF;
+        cycles++;
+        cpu->A = read_byte (cpu, address, &cycles);
+        set_status_flag (&cpu->P, &cpu->A);
+      }
+      break;
+    case INS_LDA_ABS:
+      {
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
 
-    Read-Modify-Write instructions (ASL, LSR, ROL, ROR, INC, DEC,
-                                   SLO, SRE, RLA, RRA, ISB, DCP)
+        Word address = get_word_address (loByte, hiByte);
 
-      #  address R/W description
-     --- ------- --- ------------------------------------------
-      1    PC     R  fetch opcode, increment PC
-      2    PC     R  fetch low byte of address, increment PC
-      3    PC     R  fetch high byte of address, increment PC
-      4  address  R  read from effective address
-      5  address  W  write the value back to effective address,
-                     and do the operation on it
-      6  address  W  write the new value to effective address
+        cpu->A = read_byte (cpu, address, &cycles);
 
-    Write instructions (STA, STX, STY, SAX)
+        set_status_flag (&cpu->P, &cpu->A);
+      }
+      break;
+    case INS_LDA_ABX:
+      {
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
 
-      #  address R/W description
-     --- ------- --- ------------------------------------------
-      1    PC     R  fetch opcode, increment PC
-      2    PC     R  fetch low byte of address, increment PC
-      3    PC     R  fetch high byte of address, increment PC
-      4  address  W  write register to effective address
-     */
-  case INS_STX_ABS: {
-    Byte LoByte = FetchByte(cpu, &Cycles);
-    Byte HiByte = FetchByte(cpu, &Cycles);
+        Word address = get_word_address (loByte, hiByte);
+        Byte hiByteBefore = address >> 8;
 
-    Word Address = GetWordAddress(LoByte, HiByte);
-    WriteByte(cpu, Address, cpu->X, &Cycles);
-  } break;
-  case INS_STY_ABS: {
-    Byte LoByte = FetchByte(cpu, &Cycles);
-    Byte HiByte = FetchByte(cpu, &Cycles);
+        address += cpu->X;
+        Byte hiByteAfter = address >> 8;
 
-    Word Address = GetWordAddress(LoByte, HiByte);
+        cpu->A = read_byte (cpu, address, &cycles);
+        set_status_flag (&cpu->P, &cpu->A);
+        if (hiByteBefore != hiByteAfter)
+          {
+            cycles++;
+          }
+      }
+      break;
+    case INS_LDA_ABY:
+      {
 
-    WriteByte(cpu, Address, cpu->Y, &Cycles);
-  } break;
-  case INS_STA_ABS: {
-    Byte LoByte = FetchByte(cpu, &Cycles);
-    Byte HiByte = FetchByte(cpu, &Cycles);
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
 
-    Word Address = GetWordAddress(LoByte, HiByte);
+        Word address = get_word_address (loByte, hiByte);
+        Byte AddrhiByte = address >> 8;
 
-    WriteByte(cpu, Address, cpu->A, &Cycles);
-  } break;
-  case INS_LDA_ABS: {
-    Byte LoByte = FetchByte(cpu, &Cycles);
-    Byte HiByte = FetchByte(cpu, &Cycles);
+        address += cpu->Y;
+        Byte AddrAfterhiByte = address >> 8;
 
-    Word Address = GetWordAddress(LoByte, HiByte);
+        cpu->A = read_byte (cpu, address, &cycles);
+        set_status_flag (&cpu->P, &cpu->A);
+        if (AddrhiByte != AddrAfterhiByte)
+          {
+            cycles++;
+          }
+      }
+      break;
+    case INS_LDA_IDX:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
+        address += cpu->X;
 
-    cpu->A = ReadByte(cpu, Address, &Cycles);
+        Byte loByte = read_byte (cpu, address, &cycles);
+        address += 1;
+        Byte hiByte = read_byte (cpu, address, &cycles);
 
-    SetStatusFlag(&cpu->P, &cpu->A);
-  } break;
-  case INS_LDX_ABS: {
-    Byte LoByte = FetchByte(cpu, &Cycles);
-    Byte HiByte = FetchByte(cpu, &Cycles);
+        Word targetAddress = get_word_address (loByte, hiByte);
+        cycles += 1;
+        cpu->A = read_byte (cpu, targetAddress, &cycles);
+        set_status_flag (&cpu->P, &cpu->A);
+      }
+      break;
+    case INS_LDA_IDY:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
 
-    Word Address = GetWordAddress(LoByte, HiByte);
-    cpu->X = ReadByte(cpu, Address, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->X);
-  } break;
-  case INS_LDY_ABS: {
-    Byte LoByte = FetchByte(cpu, &Cycles);
-    Byte HiByte = FetchByte(cpu, &Cycles);
+        Byte loByte = read_byte (cpu, address, &cycles);
+        address += 1;
+        Byte hiByte = read_byte (cpu, address, &cycles);
 
-    Word Address = GetWordAddress(LoByte, HiByte);
-    cpu->Y = ReadByte(cpu, Address, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->Y);
-  } break;
-    /*
-            #  address R/W description
-           --- ------- ---
-       ------------------------------------------------- 1    PC     R
-       fetch opcode, increment PC 2    PC     R  fetch low address byte,
-       increment PC 3    PC     R  copy low address byte to PCL, fetch high
-       address byte to PCH
-    */
-  case INS_JMP_ABS: {
-    Byte LoByte = FetchByte(cpu, &Cycles);
-    Byte HiByte = FetchByte(cpu, &Cycles);
+        Word targetAddress = get_word_address (loByte, hiByte);
+        targetAddress += cpu->Y;
 
-    cpu->PC = GetWordAddress(LoByte, HiByte);
-    Cycles++;
-  } break;
-  /****************************************
-   * Absolute Indexed Addressing
-   ***************************************
-   Read instructions (LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT,
-                    LAX, LAE, SHS, NOP)
+        Byte addrAfterhiByte = targetAddress >> 8;
 
-    #   address  R/W description
-   --- --------- --- ------------------------------------------
-    1     PC      R  fetch opcode, increment PC
-    2     PC      R  fetch low byte of address, increment PC
-    3     PC      R  fetch high byte of address,
-                     add index register to low address byte,
-                     increment PC
-    4  address+I* R  read from effective address,
-                     fix the high byte of effective address
-    5+ address+I  R  re-read from effective address
+        cpu->A = read_byte (cpu, targetAddress, &cycles);
+        set_status_flag (&cpu->P, &cpu->A);
+        if (addrAfterhiByte != hiByte)
+          {
+            cycles++;
+          }
+      }
+      break;
+    case INS_LDX_IM:
+      {
+        Byte Value = fetch_byte (cpu, &cycles);
+        cpu->X = Value;
+        set_status_flag (&cpu->P, &cpu->X);
+      }
+      break;
+    case INS_LDX_ZP:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
+        cpu->X = read_byte (cpu, address, &cycles);
+        set_status_flag (&cpu->P, &cpu->X);
+      }
+      break;
+    case INS_LDX_ZPY:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
+        address += cpu->Y;
+        cycles++;
+        cpu->X = read_byte (cpu, address, &cycles);
+        set_status_flag (&cpu->P, &cpu->X);
+      }
+      break;
+    case INS_LDX_ABS:
+      {
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
 
-    Notes: I denotes either index register (X or Y).
+        Word address = get_word_address (loByte, hiByte);
+        cpu->X = read_byte (cpu, address, &cycles);
+        set_status_flag (&cpu->P, &cpu->X);
+      }
+      break;
+    case INS_LDX_ABY:
+      {
 
-          * The high byte of the effective address may be invalid
-            at this time, i.e. it may be smaller by $100.
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
 
-          + This cycle will be executed only if the effective address
-            was invalid during cycle #4, i.e. page boundary was crossed.
+        Word address = get_word_address (loByte, hiByte);
+        Byte AddrhiByte = address >> 8;
 
-  Read-Modify-Write instructions (ASL, LSR, ROL, ROR, INC, DEC,
-                                 SLO, SRE, RLA, RRA, ISB, DCP)
+        address += cpu->Y;
+        Byte AddrAfterhiByte = address >> 8;
 
-    #   address  R/W description
-   --- --------- --- ------------------------------------------
-    1    PC       R  fetch opcode, increment PC
-    2    PC       R  fetch low byte of address, increment PC
-    3    PC       R  fetch high byte of address,
-                     add index register X to low address byte,
-                     increment PC
-    4  address+X* R  read from effective address,
-                     fix the high byte of effective address
-    5  address+X  R  re-read from effective address
-    6  address+X  W  write the value back to effective address,
-                     and do the operation on it
-    7  address+X  W  write the new value to effective address
+        cpu->X = read_byte (cpu, address, &cycles);
+        set_status_flag (&cpu->P, &cpu->X);
+        if (AddrhiByte != AddrAfterhiByte)
+          {
+            cycles++;
+          }
+      }
+      break;
+    case INS_LDY_IM:
+      {
+        Byte Value = fetch_byte (cpu, &cycles);
+        cpu->Y = Value;
+        set_status_flag (&cpu->P, &cpu->Y);
+      }
+      break;
+    case INS_LDY_ZP:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
+        cpu->Y = read_byte (cpu, address, &cycles);
+        set_status_flag (&cpu->P, &cpu->Y);
+      }
+      break;
+    case INS_LDY_ZPX:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
+        address += cpu->X;
+        cycles++;
+        cpu->Y = read_byte (cpu, address, &cycles);
+        set_status_flag (&cpu->P, &cpu->Y);
+      }
+      break;
+    case INS_LDY_ABS:
+      {
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
 
-   Notes: * The high byte of the effective address may be invalid
-            at this time, i.e. it may be smaller by $100.
+        Word address = get_word_address (loByte, hiByte);
+        cpu->Y = read_byte (cpu, address, &cycles);
+        set_status_flag (&cpu->P, &cpu->Y);
+      }
+      break;
+    case INS_LDY_ABX:
+      {
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
 
-  Write instructions (STA, STX, STY, SHA, SHX, SHY)
+        Word address = get_word_address (loByte, hiByte);
+        Byte AddrhiByte = address >> 8;
 
-    #   address  R/W description
-   --- --------- --- ------------------------------------------
-    1     PC      R  fetch opcode, increment PC
-    2     PC      R  fetch low byte of address, increment PC
-    3     PC      R  fetch high byte of address,
-                     add index register to low address byte,
-                     increment PC
-    4  address+I* R  read from effective address,
-                     fix the high byte of effective address
-    5  address+I  W  write to effective address
+        address += cpu->X;
+        Byte AddrAfterhiByte = address >> 8;
 
-    Notes: I denotes either index register (X or Y).
+        cpu->Y = read_byte (cpu, address, &cycles);
+        set_status_flag (&cpu->P, &cpu->Y);
+        if (AddrhiByte != AddrAfterhiByte)
+          {
+            cycles++;
+          }
+      }
+      break;
+    case INS_STA_ZP:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
+        write_byte (cpu, address, cpu->A, &cycles);
+      }
+      break;
+    case INS_STA_ZPX:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
+        address = (address + cpu->X) & 0x00FF;
+        cycles++;
+        write_byte (cpu, address, cpu->A, &cycles);
+      }
+      break;
+    case INS_STA_ABS:
+      {
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
 
-          * The high byte of the effective address may be invalid
-            at this time, i.e. it may be smaller by $100. Because
-            the processor cannot undo a write to an invalid
-            address, it always reads from the address first.
-   */
-  case INS_STA_ABX: {
-    Byte LoByte = FetchByte(cpu, &Cycles);
-    Byte HiByte = FetchByte(cpu, &Cycles);
+        Word address = get_word_address (loByte, hiByte);
 
-    Word Address = GetWordAddress(LoByte, HiByte);
-    Byte HiByteBefore = Address >> 8;
+        write_byte (cpu, address, cpu->A, &cycles);
+      }
+      break;
+    case INS_STA_ABX:
+      {
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
 
-    Address += cpu->X;
-    Byte HiByteAfter = Address >> 8;
+        Word address = get_word_address (loByte, hiByte);
+        Byte hiByteBefore = address >> 8;
 
-    WriteByte(cpu, Address, cpu->A, &Cycles);
+        address += cpu->X;
+        Byte hiByteAfter = address >> 8;
 
-    if (HiByteBefore != HiByteAfter) {
-      Cycles++;
+        write_byte (cpu, address, cpu->A, &cycles);
+
+        if (hiByteBefore != hiByteAfter)
+          {
+            cycles++;
+          }
+      }
+      break;
+    case INS_STA_ABY:
+      {
+
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
+
+        Word address = get_word_address (loByte, hiByte);
+        Byte AddrhiByte = address >> 8;
+
+        address += cpu->Y;
+        Byte AddrAfterhiByte = address >> 8;
+
+        write_byte (cpu, address, cpu->A, &cycles);
+        set_status_flag (&cpu->P, &cpu->A);
+        if (AddrhiByte != AddrAfterhiByte)
+          {
+            cycles++;
+          }
+      }
+      break;
+    case INS_STA_IDX:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
+        address += cpu->X;
+
+        Byte loByte = read_byte (cpu, address, &cycles);
+        address += 1;
+        Byte hiByte = read_byte (cpu, address, &cycles);
+
+        Word targetAddress = get_word_address (loByte, hiByte);
+        cycles += 1;
+        write_byte (cpu, targetAddress, cpu->A, &cycles);
+      }
+      break;
+    case INS_STA_IDY:
+      {
+
+        Byte address = fetch_byte (cpu, &cycles);
+
+        Byte loByte = read_byte (cpu, address, &cycles);
+        address += 1;
+        Byte hiByte = read_byte (cpu, address, &cycles);
+
+        Word targetAddress = get_word_address (loByte, hiByte);
+        targetAddress += cpu->Y;
+
+        Byte addrAfterhiByte = targetAddress >> 8;
+
+        write_byte (cpu, targetAddress, cpu->A, &cycles);
+        if (addrAfterhiByte != hiByte)
+          {
+            cycles++;
+          }
+      }
+      break;
+    case INS_STX_ZP:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
+        write_byte (cpu, address, cpu->X, &cycles);
+      }
+      break;
+    case INS_STX_ZPY:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
+        address = (address + cpu->Y) & 0x00FF;
+        cycles++;
+        write_byte (cpu, address, cpu->X, &cycles);
+      };
+    case INS_STX_ABS:
+      {
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
+
+        Word address = get_word_address (loByte, hiByte);
+        write_byte (cpu, address, cpu->X, &cycles);
+      }
+      break;
+    case INS_STY_ZP:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
+        write_byte (cpu, address, cpu->Y, &cycles);
+      }
+      break;
+    case INS_STY_ZPX:
+      {
+        Byte address = fetch_byte (cpu, &cycles);
+        address = (address + cpu->X) & 0x00FF;
+        cycles++;
+        write_byte (cpu, address, cpu->Y, &cycles);
+      }
+      break;
+    case INS_STY_ABS:
+      {
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
+
+        Word address = get_word_address (loByte, hiByte);
+
+        write_byte (cpu, address, cpu->Y, &cycles);
+      }
+      break;
+    case INS_DEC_ZP:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_DEC_ZPX:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_DEC_ABS:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_DEC_ABX:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+
+    case INS_INC_ZP:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_INC_ZPX:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_INC_ABS:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_INC_ABX:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+
+    /* Register Instructions */
+    case INS_TAX:
+      {
+        burn_byte (cpu, &cycles);
+        cpu->X = cpu->A;
+        set_status_flag (&cpu->P, &cpu->X);
+      }
+      break;
+    case INS_TAY:
+      {
+        burn_byte (cpu, &cycles);
+        cpu->Y = cpu->A;
+        set_status_flag (&cpu->P, &cpu->Y);
+      }
+      break;
+    case INS_TXA:
+      {
+        burn_byte (cpu, &cycles);
+        cpu->A = cpu->X;
+        set_status_flag (&cpu->P, &cpu->A);
+      }
+      break;
+    case INS_TYA:
+      {
+        burn_byte (cpu, &cycles);
+        cpu->A = cpu->Y;
+        set_status_flag (&cpu->P, &cpu->A);
+      }
+      break;
+    case INS_DEX:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_DEY:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_INX:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_INY:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    default:
+      {
+        printf ("Operation not handled %d\n", instruction);
+      };
     }
-  } break;
-  case INS_STA_ABY: {
 
-    Byte LoByte = FetchByte(cpu, &Cycles);
-    Byte HiByte = FetchByte(cpu, &Cycles);
-
-    Word Address = GetWordAddress(LoByte, HiByte);
-    Byte AddrHiByte = Address >> 8;
-
-    Address += cpu->Y;
-    Byte AddrAfterHiByte = Address >> 8;
-
-    WriteByte(cpu, Address, cpu->A, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->A);
-    if (AddrHiByte != AddrAfterHiByte) {
-      Cycles++;
-    }
-  } break;
-  case INS_LDA_ABX: {
-    Byte LoByte = FetchByte(cpu, &Cycles);
-    Byte HiByte = FetchByte(cpu, &Cycles);
-
-    Word Address = GetWordAddress(LoByte, HiByte);
-    Byte HiByteBefore = Address >> 8;
-
-    Address += cpu->X;
-    Byte HiByteAfter = Address >> 8;
-
-    cpu->A = ReadByte(cpu, Address, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->A);
-    if (HiByteBefore != HiByteAfter) {
-      Cycles++;
-    }
-  } break;
-  case INS_LDA_ABY: {
-
-    Byte LoByte = FetchByte(cpu, &Cycles);
-    Byte HiByte = FetchByte(cpu, &Cycles);
-
-    Word Address = GetWordAddress(LoByte, HiByte);
-    Byte AddrHiByte = Address >> 8;
-
-    Address += cpu->Y;
-    Byte AddrAfterHiByte = Address >> 8;
-
-    cpu->A = ReadByte(cpu, Address, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->A);
-    if (AddrHiByte != AddrAfterHiByte) {
-      Cycles++;
-    }
-  } break;
-  case INS_LDX_ABY: {
-
-    Byte LoByte = FetchByte(cpu, &Cycles);
-    Byte HiByte = FetchByte(cpu, &Cycles);
-
-    Word Address = GetWordAddress(LoByte, HiByte);
-    Byte AddrHiByte = Address >> 8;
-
-    Address += cpu->Y;
-    Byte AddrAfterHiByte = Address >> 8;
-
-    cpu->X = ReadByte(cpu, Address, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->X);
-    if (AddrHiByte != AddrAfterHiByte) {
-      Cycles++;
-    }
-  } break;
-  case INS_LDY_ABX: {
-    Byte LoByte = FetchByte(cpu, &Cycles);
-    Byte HiByte = FetchByte(cpu, &Cycles);
-
-    Word Address = GetWordAddress(LoByte, HiByte);
-    Byte AddrHiByte = Address >> 8;
-
-    Address += cpu->X;
-    Byte AddrAfterHiByte = Address >> 8;
-
-    cpu->Y = ReadByte(cpu, Address, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->Y);
-    if (AddrHiByte != AddrAfterHiByte) {
-      Cycles++;
-    }
-  } break;
-
-  /****************************************
-   * Zero Page Addressing
-   ***************************************
-
-   Read instructions (LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT,
-                    LAX, NOP)
-
-    #  address R/W description
-   --- ------- --- ------------------------------------------
-    1    PC     R  fetch opcode, increment PC
-    2    PC     R  fetch address, increment PC
-    3  address  R  read from effective address
-
-  Read-Modify-Write instructions (ASL, LSR, ROL, ROR, INC, DEC,
-                                 SLO, SRE, RLA, RRA, ISB, DCP)
-
-    #  address R/W description
-   --- ------- --- ------------------------------------------
-    1    PC     R  fetch opcode, increment PC
-    2    PC     R  fetch address, increment PC
-    3  address  R  read from effective address
-    4  address  W  write the value back to effective address,
-                   and do the operation on it
-    5  address  W  write the new value to effective address
-
-  Write instructions (STA, STX, STY, SAX)
-
-    #  address R/W description
-   --- ------- --- ------------------------------------------
-    1    PC     R  fetch opcode, increment PC
-    2    PC     R  fetch address, increment PC
-    3  address  W  write register to effective address
-   */
-  case INS_STX_ZP: {
-    Byte Address = FetchByte(cpu, &Cycles);
-    WriteByte(cpu, Address, cpu->X, &Cycles);
-  } break;
-  case INS_STY_ZP: {
-    Byte Address = FetchByte(cpu, &Cycles);
-    WriteByte(cpu, Address, cpu->Y, &Cycles);
-  } break;
-  case INS_STA_ZP: {
-    Byte Address = FetchByte(cpu, &Cycles);
-    WriteByte(cpu, Address, cpu->A, &Cycles);
-  } break;
-  case INS_LDA_ZP: {
-    Byte Address = FetchByte(cpu, &Cycles);
-    cpu->A = ReadByte(cpu, Address, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->A);
-  } break;
-  case INS_LDX_ZP: {
-    Byte Address = FetchByte(cpu, &Cycles);
-    cpu->X = ReadByte(cpu, Address, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->X);
-  } break;
-  case INS_LDY_ZP: {
-    Byte Address = FetchByte(cpu, &Cycles);
-    cpu->Y = ReadByte(cpu, Address, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->Y);
-  } break;
-
-    /****************************************
-     * Zero Page Indexed Addressing
-     ***************************************
-     Read instructions (LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT,
-                      LAX, NOP)
-
-      #   address  R/W description
-     --- --------- --- ------------------------------------------
-      1     PC      R  fetch opcode, increment PC
-      2     PC      R  fetch address, increment PC
-      3   address   R  read from address, add index register to it
-      4  address+I* R  read from effective address
-
-      Notes: I denotes either index register (X or Y).
-
-            * The high byte of the effective address is always zero,
-              i.e. page boundary crossings are not handled.
-
-    Read-Modify-Write instructions (ASL, LSR, ROL, ROR, INC, DEC,
-                                   SLO, SRE, RLA, RRA, ISB, DCP)
-
-      #   address  R/W description
-     --- --------- --- ---------------------------------------------
-      1     PC      R  fetch opcode, increment PC
-      2     PC      R  fetch address, increment PC
-      3   address   R  read from address, add index register X to it
-      4  address+X* R  read from effective address
-      5  address+X* W  write the value back to effective address,
-                       and do the operation on it
-      6  address+X* W  write the new value to effective address
-
-      Note: * The high byte of the effective address is always zero,
-             i.e. page boundary crossings are not handled.
-
-    Write instructions (STA, STX, STY, SAX)
-
-      #   address  R/W description
-     --- --------- --- -------------------------------------------
-      1     PC      R  fetch opcode, increment PC
-      2     PC      R  fetch address, increment PC
-      3   address   R  read from address, add index register to it
-      4  address+I* W  write to effective address
-
-      Notes: I denotes either index register (X or Y).
-
-            * The high byte of the effective address is always zero,
-              i.e. page boundary crossings are not handled.
-    */
-  case INS_STY_ZPX: {
-    Byte Address = FetchByte(cpu, &Cycles);
-    Address = (Address + cpu->X) & 0x00FF;
-    Cycles++;
-    WriteByte(cpu, Address, cpu->Y, &Cycles);
-  } break;
-  case INS_STA_ZPX: {
-    Byte Address = FetchByte(cpu, &Cycles);
-    Address = (Address + cpu->X) & 0x00FF;
-    Cycles++;
-    WriteByte(cpu, Address, cpu->A, &Cycles);
-  } break;
-  case INS_STX_ZPY: {
-    Byte Address = FetchByte(cpu, &Cycles);
-    Address = (Address + cpu->Y) & 0x00FF;
-    Cycles++;
-    WriteByte(cpu, Address, cpu->X, &Cycles);
-  };
-  case INS_LDA_ZPX: {
-    Byte Address = FetchByte(cpu, &Cycles);
-    Address = (Address + cpu->X) & 0x00FF;
-    Cycles++;
-    cpu->A = ReadByte(cpu, Address, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->A);
-  } break;
-  case INS_LDX_ZPY: {
-    Byte Address = FetchByte(cpu, &Cycles);
-    Address += cpu->Y;
-    Cycles++;
-    cpu->X = ReadByte(cpu, Address, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->X);
-  } break;
-  case INS_LDY_ZPX: {
-    Byte Address = FetchByte(cpu, &Cycles);
-    Address += cpu->X;
-    Cycles++;
-    cpu->Y = ReadByte(cpu, Address, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->Y);
-  } break;
-
-    /*************************************************************
-     *Relative addressing (BCC, BCS, BNE, BEQ, BPL, BMI, BVC, BVS)
-     *************************************************************
-
-      #   address  R/W description
-     --- --------- --- ---------------------------------------------
-      1     PC      R  fetch opcode, increment PC
-      2     PC      R  fetch operand, increment PC
-      3     PC      R  Fetch opcode of next instruction,
-                       If branch is taken, add operand to PCL.
-                       Otherwise increment PC.
-      4+    PC*     R  Fetch opcode of next instruction.
-                       Fix PCH. If it did not change, increment PC.
-      5!    PC      R  Fetch opcode of next instruction,
-                       increment PC.
-
-      Notes: The opcode fetch of the next instruction is included to
-            this diagram for illustration purposes. When determining
-            real execution times, remember to subtract the last
-            cycle.
-
-            * The high byte of Program Counter (PCH) may be invalid
-              at this time, i.e. it may be smaller or bigger by $100.
-
-            + If branch is taken, this cycle will be executed.
-
-            ! If branch occurs to different page, this cycle will be
-              executed. */
-
-    /****************************************
-     * Indexed Indirect Addressing
-     ***************************************
-    Read instructions (LDA, ORA, EOR, AND, ADC, CMP, SBC, LAX)
-
-      #    address   R/W description
-     --- ----------- --- ------------------------------------------
-      1      PC       R  fetch opcode, increment PC
-      2      PC       R  fetch pointer address, increment PC
-      3    pointer    R  read from the address, add X to it
-      4   pointer+X   R  fetch effective address low
-      5  pointer+X+1  R  fetch effective address high
-      6    address    R  read from effective address
-
-     Note: The effective address is always fetched from zero page,
-           i.e. the zero page boundary crossing is not handled.
-
-    Read-Modify-Write instructions (SLO, SRE, RLA, RRA, ISB, DCP)
-
-      #    address   R/W description
-     --- ----------- --- ------------------------------------------
-      1      PC       R  fetch opcode, increment PC
-      2      PC       R  fetch pointer address, increment PC
-      3    pointer    R  read from the address, add X to it
-      4   pointer+X   R  fetch effective address low
-      5  pointer+X+1  R  fetch effective address high
-      6    address    R  read from effective address
-      7    address    W  write the value back to effective address,
-                         and do the operation on it
-      8    address    W  write the new value to effective address
-
-      Note: The effective address is always fetched from zero page,
-           i.e. the zero page boundary crossing is not handled.
-
-    Write instructions (STA, SAX)
-
-      #    address   R/W description
-     --- ----------- --- ------------------------------------------
-      1      PC       R  fetch opcode, increment PC
-      2      PC       R  fetch pointer address, increment PC
-      3    pointer    R  read from the address, add X to it
-      4   pointer+X   R  fetch effective address low
-      5  pointer+X+1  R  fetch effective address high
-      6    address    W  write to effective address
-
-      Note: The effective address is always fetched from zero page,
-           i.e. the zero page boundary crossing is not handled. */
-
-  case INS_STA_IDX: {
-    Byte Address = FetchByte(cpu, &Cycles);
-    Address += cpu->X;
-
-    Byte LoByte = ReadByte(cpu, Address, &Cycles);
-    Address += 1;
-    Byte HiByte = ReadByte(cpu, Address, &Cycles);
-
-    Word TargetAddress = GetWordAddress(LoByte, HiByte);
-    Cycles += 1;
-    WriteByte(cpu, TargetAddress, cpu->A, &Cycles);
-  } break;
-  case INS_LDA_IDX: {
-    Byte Address = FetchByte(cpu, &Cycles);
-    Address += cpu->X;
-
-    Byte LoByte = ReadByte(cpu, Address, &Cycles);
-    Address += 1;
-    Byte HiByte = ReadByte(cpu, Address, &Cycles);
-
-    Word TargetAddress = GetWordAddress(LoByte, HiByte);
-    Cycles += 1;
-    cpu->A = ReadByte(cpu, TargetAddress, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->A);
-  } break;
-
-    /****************************************
-     * Indirect Indexed Addressing
-     ***************************************
-
-    Read instructions (LDA, EOR, AND, ORA, ADC, SBC, CMP)
-
-      #    address   R/W description
-     --- ----------- --- ------------------------------------------
-      1      PC       R  fetch opcode, increment PC
-      2      PC       R  fetch pointer address, increment PC
-      3    pointer    R  fetch effective address low
-      4   pointer+1   R  fetch effective address high,
-                         add Y to low byte of effective address
-      5   address+Y*  R  read from effective address,
-                         fix high byte of effective address
-      6+  address+Y   R  read from effective address
-
-      Notes: The effective address is always fetched from zero page,
-            i.e. the zero page boundary crossing is not handled.
-
-            * The high byte of the effective address may be invalid
-              at this time, i.e. it may be smaller by $100.
-
-            + This cycle will be executed only if the effective address
-              was invalid during cycle #5, i.e. page boundary was crossed.
-
-    Read-Modify-Write instructions (SLO, SRE, RLA, RRA, ISB, DCP)
-
-      #    address   R/W description
-     --- ----------- --- ------------------------------------------
-      1      PC       R  fetch opcode, increment PC
-      2      PC       R  fetch pointer address, increment PC
-      3    pointer    R  fetch effective address low
-      4   pointer+1   R  fetch effective address high,
-                         add Y to low byte of effective address
-      5   address+Y*  R  read from effective address,
-                         fix high byte of effective address
-      6   address+Y   R  read from effective address
-      7   address+Y   W  write the value back to effective address,
-                         and do the operation on it
-      8   address+Y   W  write the new value to effective address
-
-      Notes: The effective address is always fetched from zero page,
-            i.e. the zero page boundary crossing is not handled.
-
-            * The high byte of the effective address may be invalid
-              at this time, i.e. it may be smaller by $100.
-
-     Write instructions (STA, SHA)
-
-      #    address   R/W description
-     --- ----------- --- ------------------------------------------
-      1      PC       R  fetch opcode, increment PC
-      2      PC       R  fetch pointer address, increment PC
-      3    pointer    R  fetch effective address low
-      4   pointer+1   R  fetch effective address high,
-                         add Y to low byte of effective address
-      5   address+Y*  R  read from effective address,
-                         fix high byte of effective address
-      6   address+Y   W  write to effective address
-
-      Notes: The effective address is always fetched from zero page,
-            i.e. the zero page boundary crossing is not handled.
-
-            * The high byte of the effective address may be invalid
-              at this time, i.e. it may be smaller by $100.
-     */
-  case INS_STA_IDY: {
-
-    Byte Address = FetchByte(cpu, &Cycles);
-
-    Byte LoByte = ReadByte(cpu, Address, &Cycles);
-    Address += 1;
-    Byte HiByte = ReadByte(cpu, Address, &Cycles);
-
-    Word TargetAddress = GetWordAddress(LoByte, HiByte);
-    TargetAddress += cpu->Y;
-
-    Byte AddrAfterHiByte = TargetAddress >> 8;
-
-    WriteByte(cpu, TargetAddress, cpu->A, &Cycles);
-    if (AddrAfterHiByte != HiByte) {
-      Cycles++;
-    }
-  } break;
-  case INS_LDA_IDY: {
-    Byte Address = FetchByte(cpu, &Cycles);
-
-    Byte LoByte = ReadByte(cpu, Address, &Cycles);
-    Address += 1;
-    Byte HiByte = ReadByte(cpu, Address, &Cycles);
-
-    Word TargetAddress = GetWordAddress(LoByte, HiByte);
-    TargetAddress += cpu->Y;
-
-    Byte AddrAfterHiByte = TargetAddress >> 8;
-
-    cpu->A = ReadByte(cpu, TargetAddress, &Cycles);
-    SetStatusFlag(&cpu->P, &cpu->A);
-    if (AddrAfterHiByte != HiByte) {
-      Cycles++;
-    }
-  } break;
-
-  /**************************************************
-   * Program flow / Stack Instructions
-   * ***********************************************/
-  case INS_JSR: {
-    Byte LoByte = FetchByte(cpu, &Cycles);
-    Byte HiByte = FetchByte(cpu, &Cycles);
-
-    Word Address = GetWordAddress(LoByte, HiByte);
-    WriteWord(cpu, cpu->PC - 1, cpu->SP, &Cycles);
-    cpu->SP -= 1;
-    cpu->PC = Address;
-    Cycles++;
-  } break;
-
-  /****************************************
-   * Absolute Indirect Addressing (JMP)
-   ****************************************
-
-    #   address  R/W description
-   --- --------- --- ------------------------------------------
-    1     PC      R  fetch opcode, increment PC
-    2     PC      R  fetch pointer address low, increment PC
-    3     PC      R  fetch pointer address high, increment PC
-    4   pointer   R  fetch low address to latch
-    5  pointer+1* R  fetch PCH, copy latch to PCL
-
-     Note: * The PCH will always be fetched from the same page
-           than PCL, i.e. page boundary crossing is not handled.
-  */
-  case INS_JMP_IND: {
-  } break;
-  default: {
-    printf("Operation not handled %d\n", instruction);
-  };
-  }
-
-  return Cycles;
+  return cycles;
 }

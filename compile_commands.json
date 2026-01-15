@@ -1,7 +1,7 @@
 [
 {
   "directory": "/home/onecoldcanuck/localprojects/ace64",
-  "command": "/usr/bin/c++  -g -std=gnu++17 -o code/ace64 -c /home/onecoldcanuck/localprojects/ace64/code/ace64.c",
+  "command": "/usr/bin/gcc -g -o code/ace64 -c /home/onecoldcanuck/localprojects/ace64/code/ace64.c",
   "file": "/home/onecoldcanuck/localprojects/ace64/code/ace64.c",
   "output": "CMakeFiles/ace64_test.dir/code/cpu.c.o"
 }
