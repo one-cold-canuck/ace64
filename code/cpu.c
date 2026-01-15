@@ -299,54 +299,7 @@ execute (CPU *cpu)
       }
       break;
 
-    case INS_TSX:
-      {
-        burn_byte (cpu, &cycles);
-        cpu->X = cpu->SP;
-        set_status_flag (&cpu->P, &cpu->X);
-      }
-      break;
-    case INS_TXS:
-      {
-        burn_byte (cpu, &cycles);
-        cpu->SP = cpu->X;
-      }
-      break;
-    case INS_PHA:
-      {
-        burn_byte (cpu, &cycles);
-        Word address = 0x0100 + cpu->SP;
-        write_byte (cpu, address, cpu->A, &cycles);
-        cpu->SP--;
-      }
-      break; case INS_PHP:
-      {
-        burn_byte (cpu, &cycles);
-        Word address = 0x0100 + cpu->SP;
-        write_byte (cpu, address, cpu->P, &cycles);
-        cpu->SP--;
-      }
-      break;
-    case INS_PLP:
-      {
-        burn_byte (cpu, &cycles);
-        cpu->SP++;
-        cycles++;
-        Word address = 0x0100 + cpu->SP;
-        cpu->P = read_byte (cpu, address, &cycles);
-      }
-      break;
-    case INS_PLA:
-      {
-        burn_byte (cpu, &cycles);
-        cpu->SP++;
-        cycles++;
-        Word address = 0x0100 + cpu->SP;
-        cpu->A = read_byte (cpu, address, &cycles);
-        set_status_flag (&cpu->P, &cpu->A);
-      }
-      break;
-
+    /* Memory Instructions */
     case INS_LDA_IM:
       {
         Byte Value = fetch_byte (cpu, &cycles);
@@ -408,14 +361,14 @@ execute (CPU *cpu)
         Byte hiByte = fetch_byte (cpu, &cycles);
 
         Word address = get_word_address (loByte, hiByte);
-        Byte AddrhiByte = address >> 8;
+        Byte addrHiByte = address >> 8;
 
         address += cpu->Y;
-        Byte AddrAfterhiByte = address >> 8;
+        Byte addrAfterhiByte = address >> 8;
 
         cpu->A = read_byte (cpu, address, &cycles);
         set_status_flag (&cpu->P, &cpu->A);
-        if (AddrhiByte != AddrAfterhiByte)
+        if (addrHiByte != addrAfterhiByte)
           {
             cycles++;
           }
@@ -809,6 +762,71 @@ execute (CPU *cpu)
         printf ("Operation not handled %d\n", instruction);
       }
       break;
+
+    /* Stack Instructions */
+    case INS_PHA:
+      {
+        burn_byte (cpu, &cycles);
+        Word address = 0x0100 + cpu->SP;
+        write_byte (cpu, address, cpu->A, &cycles);
+        cpu->SP--;
+      }
+      break; 
+    case INS_PHP:
+      {
+        burn_byte (cpu, &cycles);
+        Word address = 0x0100 + cpu->SP;
+        write_byte (cpu, address, cpu->P, &cycles);
+        cpu->SP--;
+      }
+      break;
+    case INS_TXS:
+      {
+        burn_byte (cpu, &cycles);
+        cpu->SP = cpu->X;
+      }
+      break;
+    case INS_PLA:
+      {
+        burn_byte (cpu, &cycles);
+        cpu->SP++;
+        cycles++;
+        Word address = 0x0100 + cpu->SP;
+        cpu->A = read_byte (cpu, address, &cycles);
+        set_status_flag (&cpu->P, &cpu->A);
+      }
+      break;
+    case INS_TSX:
+      {
+        burn_byte (cpu, &cycles);
+        cpu->X = cpu->SP;
+        set_status_flag (&cpu->P, &cpu->X);
+      }
+      break;
+    case INS_PLP:
+      {
+        burn_byte (cpu, &cycles);
+        cpu->SP++;
+        cycles++;
+        Word address = 0x0100 + cpu->SP;
+        cpu->P = read_byte (cpu, address, &cycles);
+      }
+      break;
+
+    /* Other Instructions */
+    case INS_BRK:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+    case INS_NOP:
+      {
+        // TODO: Implement this
+        printf ("Operation not handled %d\n", instruction);
+      }
+      break;
+
     default:
       {
         printf ("Operation not handled %d\n", instruction);
