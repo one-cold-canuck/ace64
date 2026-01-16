@@ -592,6 +592,7 @@ execute (CPU *cpu)
         write_byte (cpu, targetAddress, cpu->A, &cycles);
       }
       break;
+
     case INS_STA_IDY:
       {
 
