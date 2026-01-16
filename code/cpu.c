@@ -502,14 +502,14 @@ execute (CPU *cpu)
         Byte hiByte = fetch_byte (cpu, &cycles);
 
         Word address = get_word_address (loByte, hiByte);
-        Byte AddrhiByte = address >> 8;
+        Byte addrHiByte = address >> 8;
 
         address += cpu->X;
-        Byte AddrAfterhiByte = address >> 8;
+        Byte addrAfterhiByte = address >> 8;
 
         cpu->Y = read_byte (cpu, address, &cycles);
         set_status_flag (&cpu->P, &cpu->Y);
-        if (AddrhiByte != AddrAfterhiByte)
+        if (addrHiByte != addrAfterhiByte)
           {
             cycles++;
           }
@@ -661,51 +661,97 @@ execute (CPU *cpu)
       break;
     case INS_DEC_ZP:
       {
-        // TODO: Implement this
-        printf ("Operation not handled %d\n", instruction);
+        Byte address = fetch_byte (cpu, &cycles);
+        Byte value = read_byte (cpu, address, &cycles);
+
+        write_byte (cpu, address, value, &cycles);   // Cycle 4
+        write_byte (cpu, address, --value, &cycles); // Cycle 5
+        set_status_flag(&cpu->P, &value);
       }
       break;
     case INS_DEC_ZPX:
       {
-        // TODO: Implement this
-        printf ("Operation not handled %d\n", instruction);
+        Byte address = fetch_byte (cpu, &cycles);
+        Byte effective_address = read_byte (cpu, address, &cycles) + cpu->X;
+        Byte value = read_byte (cpu, effective_address, &cycles);
+        write_byte (cpu, effective_address, value, &cycles);
+        write_byte (cpu, effective_address, --value, &cycles);
+        set_status_flag(&cpu->P, &value);
       }
       break;
     case INS_DEC_ABS:
       {
-        // TODO: Implement this
-        printf ("Operation not handled %d\n", instruction);
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
+        Word address = get_word_address (loByte, hiByte);
+        Byte value = read_byte (cpu, address, &cycles);
+        write_byte (cpu, address, value, &cycles);
+        write_byte (cpu, address, --value, &cycles);
+        set_status_flag(&cpu->P, &value);
       }
       break;
     case INS_DEC_ABX:
       {
-        // TODO: Implement this
-        printf ("Operation not handled %d\n", instruction);
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
+
+        Byte value = read_byte (cpu, hiByte << 8 | loByte + cpu->X, &cycles);
+        if (loByte + cpu->X < loByte)
+          {
+            hiByte++;
+          }
+        cycles++;
+        value = read_byte (cpu, hiByte << 8 | loByte + cpu->X, &cycles);
+        write_byte (cpu, hiByte << 8 | loByte + cpu->X, --value, &cycles);
+        set_status_flag(&cpu->P, &value);
       }
       break;
 
     case INS_INC_ZP:
       {
-        // TODO: Implement this
-        printf ("Operation not handled %d\n", instruction);
+        Byte address = fetch_byte (cpu, &cycles);
+        Byte value = read_byte (cpu, address, &cycles);
+
+        write_byte (cpu, address, value, &cycles);   // Cycle 4
+        write_byte (cpu, address, ++value, &cycles); // Cycle 5
+        set_status_flag(&cpu->P, &value);
       }
       break;
     case INS_INC_ZPX:
       {
-        // TODO: Implement this
-        printf ("Operation not handled %d\n", instruction);
+        Byte address = fetch_byte (cpu, &cycles);
+        Byte effective_address = read_byte (cpu, address, &cycles) + cpu->X;
+        Byte value = read_byte (cpu, effective_address, &cycles);
+        write_byte (cpu, effective_address, value, &cycles);
+        write_byte (cpu, effective_address, ++value, &cycles);
+        set_status_flag(&cpu->P, &value);
       }
       break;
     case INS_INC_ABS:
       {
-        // TODO: Implement this
-        printf ("Operation not handled %d\n", instruction);
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
+        Word address = get_word_address (loByte, hiByte);
+        Byte value = read_byte (cpu, address, &cycles);
+        write_byte (cpu, address, value, &cycles);
+        write_byte (cpu, address, ++value, &cycles);
+        set_status_flag(&cpu->P, &value);
       }
       break;
     case INS_INC_ABX:
       {
-        // TODO: Implement this
-        printf ("Operation not handled %d\n", instruction);
+        Byte loByte = fetch_byte (cpu, &cycles);
+        Byte hiByte = fetch_byte (cpu, &cycles);
+
+        Byte value = read_byte (cpu, hiByte << 8 | loByte + cpu->X, &cycles);
+        if (loByte + cpu->X < loByte)
+          {
+            hiByte++;
+          }
+        cycles++;
+        value = read_byte (cpu, hiByte << 8 | loByte + cpu->X, &cycles);
+        write_byte (cpu, hiByte << 8 | loByte + cpu->X, ++value, &cycles);
+        set_status_flag(&cpu->P, &value);
       }
       break;
 
@@ -771,7 +817,7 @@ execute (CPU *cpu)
         write_byte (cpu, address, cpu->A, &cycles);
         cpu->SP--;
       }
-      break; 
+      break;
     case INS_PHP:
       {
         burn_byte (cpu, &cycles);

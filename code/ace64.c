@@ -2,6 +2,7 @@
 #include <malloc.h>
 #include <stdio.h>
 
+
 int main(int argc, char *argv[]) {
   Memory *memory = (Memory *)malloc(sizeof(Memory));
   CPU *cpu = (CPU *)malloc(sizeof(CPU));
