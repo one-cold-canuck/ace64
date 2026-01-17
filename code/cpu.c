@@ -426,6 +426,7 @@ execute (CPU *cpu)
       break;
     case INS_LDX_ZPY:
       {
+        printf("Am I reaching this?");
         Byte address = fetch_byte (cpu, &cycles);
         address += cpu->Y;
         cycles++;
@@ -516,6 +517,7 @@ execute (CPU *cpu)
       }
       break;
     case INS_STA_ZP:
+
       {
         Byte address = fetch_byte (cpu, &cycles);
         write_byte (cpu, address, cpu->A, &cycles);
@@ -626,7 +628,8 @@ execute (CPU *cpu)
         address = (address + cpu->Y) & 0x00FF;
         cycles++;
         write_byte (cpu, address, cpu->X, &cycles);
-      };
+      }
+      break;
     case INS_STX_ABS:
       {
         Byte loByte = fetch_byte (cpu, &cycles);
@@ -673,7 +676,8 @@ execute (CPU *cpu)
     case INS_DEC_ZPX:
       {
         Byte address = fetch_byte (cpu, &cycles);
-        Byte effective_address = read_byte (cpu, address, &cycles) + cpu->X;
+        Byte effective_address = address + cpu->X;
+        cycles++;
         Byte value = read_byte (cpu, effective_address, &cycles);
         write_byte (cpu, effective_address, value, &cycles);
         write_byte (cpu, effective_address, --value, &cycles);
@@ -696,14 +700,14 @@ execute (CPU *cpu)
         Byte loByte = fetch_byte (cpu, &cycles);
         Byte hiByte = fetch_byte (cpu, &cycles);
 
-        Byte value = read_byte (cpu, hiByte << 8 | loByte + cpu->X, &cycles);
+        Byte value = read_byte (cpu, hiByte << 8 | (loByte + cpu->X), &cycles);
         if (loByte + cpu->X < loByte)
           {
             hiByte++;
           }
         cycles++;
-        value = read_byte (cpu, hiByte << 8 | loByte + cpu->X, &cycles);
-        write_byte (cpu, hiByte << 8 | loByte + cpu->X, --value, &cycles);
+        value = read_byte (cpu, hiByte << 8 | (loByte + cpu->X), &cycles);
+        write_byte (cpu, hiByte << 8 |(loByte + cpu->X), --value, &cycles);
         set_status_flag(&cpu->P, &value);
       }
       break;
@@ -721,7 +725,8 @@ execute (CPU *cpu)
     case INS_INC_ZPX:
       {
         Byte address = fetch_byte (cpu, &cycles);
-        Byte effective_address = read_byte (cpu, address, &cycles) + cpu->X;
+        Byte effective_address = address + cpu->X;
+        cycles++;
         Byte value = read_byte (cpu, effective_address, &cycles);
         write_byte (cpu, effective_address, value, &cycles);
         write_byte (cpu, effective_address, ++value, &cycles);
@@ -744,14 +749,14 @@ execute (CPU *cpu)
         Byte loByte = fetch_byte (cpu, &cycles);
         Byte hiByte = fetch_byte (cpu, &cycles);
 
-        Byte value = read_byte (cpu, hiByte << 8 | loByte + cpu->X, &cycles);
+        Byte value = read_byte (cpu, hiByte << 8 | (loByte + cpu->X), &cycles);
         if (loByte + cpu->X < loByte)
           {
             hiByte++;
           }
         cycles++;
-        value = read_byte (cpu, hiByte << 8 | loByte + cpu->X, &cycles);
-        write_byte (cpu, hiByte << 8 | loByte + cpu->X, ++value, &cycles);
+        value = read_byte (cpu, hiByte << 8 | (loByte + cpu->X), &cycles);
+        write_byte (cpu, hiByte << 8 | (loByte + cpu->X), ++value, &cycles);
         set_status_flag(&cpu->P, &value);
       }
       break;

@@ -17,3 +17,7 @@ CTestTestfile.cmake
 Makefile
 ace64_test\[1\]_include.cmake
 cmake_install.cmake
+lib
+ace64_test
+ace64_test\[1\]_tests.cmake
+cmake_test_discovery_664f90e808.json

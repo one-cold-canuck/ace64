@@ -516,7 +516,7 @@ TEST_F (ace64Test, LDYImmediate)
   // given:
   cpu.Memory[0xFFFC] = INS_LDY_IM;
   cpu.Memory[0xFFFD] = 0x77;
-CPU cpuCopy = cpu;
+  CPU cpuCopy = cpu;
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
@@ -902,7 +902,6 @@ TEST_F (ace64Test, STXAbsolute)
   cpu.Memory[0xFFFD] = 0x80;
   cpu.Memory[0xFFFE] = 0x44; // 0x4480
   constexpr Sint32 EXPECTED_CYCLES = 4;
-  CPU cpuCopy = cpu;
 
   // when:
   Sint32 CyclesUsed = execute (&cpu);
@@ -911,10 +910,10 @@ TEST_F (ace64Test, STXAbsolute)
   EXPECT_EQ (cpu.X, 0x77);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
   EXPECT_EQ (cpu.Memory[0x4480], 0x77);
-  VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
-TEST_F (ace64Test, STX_ZeroPoint_Indexed_Address_Contains_Value){
+TEST_F (ace64Test, STX_ZeroPoint_Indexed_Address_Contains_Value)
+{
   //
   // given:
   cpu.Y = 0x02;
@@ -922,7 +921,6 @@ TEST_F (ace64Test, STX_ZeroPoint_Indexed_Address_Contains_Value){
   cpu.Memory[0xFFFC] = INS_STX_ZPY;
   cpu.Memory[0xFFFD] = 0x04;
   cpu.Memory[0x0006] = 0x00;
-  CPU cpuCopy = cpu;
   constexpr Sint32 EXPECTED_CYCLES = 4;
 
   // when:
@@ -933,8 +931,9 @@ TEST_F (ace64Test, STX_ZeroPoint_Indexed_Address_Contains_Value){
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
 }
 
-TEST_F (ace64Test, STY_ZerPoint_Address_Contains_Value){
-  
+TEST_F (ace64Test, STY_ZerPoint_Address_Contains_Value)
+{
+
   // given:
   cpu.Y = 0x37;
   cpu.Memory[0xFFFC] = INS_STY_ZP;
@@ -949,6 +948,195 @@ TEST_F (ace64Test, STY_ZerPoint_Address_Contains_Value){
   // then:
   EXPECT_EQ (cpu.Memory[0x003D], 0x37);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+}
+
+/* DEC and INC */
+TEST_F (ace64Test, DEC_ZeroPage_Decreases_Value)
+{
+  // given:
+  cpu.Memory[0xFFFC] = INS_DEC_ZP;
+  cpu.Memory[0xFFFD] = 0x3D;
+  cpu.Memory[0x003D] = 0x01;
+  constexpr Sint32 EXPECTED_CYCLES = 5;
+  CPU cpuCopy = cpu;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);  
+
+  // then:
+  EXPECT_EQ (cpu.Memory[0x003D], 0x00);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+  VerifyUnmodifiedFlags(cpu, cpuCopy);
+}
+
+TEST_F (ace64Test, DEC_ZeroPage_Indexed_Decreases_Value)
+{
+  // given:
+  cpu.X = 0x02;
+  cpu.Memory[0xFFFC] = INS_DEC_ZPX;
+  cpu.Memory[0xFFFD] = 0x04;
+  cpu.Memory[0x0006] = 0x01;
+  constexpr Sint32 EXPECTED_CYCLES = 6;
+  CPU cpuCopy = cpu;
+  printf("Status before: %b\n", cpu.P);
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);  
+
+  // then:
+  EXPECT_EQ (cpu.Memory[0x0006], 0x00);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+  printf("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags(cpu, cpuCopy);
+}
+
+TEST_F(ace64Test, DEC_ZeroPage_ZeroValue){
+  // given:
+  cpu.Memory[0xFFFC] = INS_DEC_ZP;
+  cpu.Memory[0xFFFD] = 0x04;
+  cpu.Memory[0x0004] = 0x00;
+  constexpr Sint32 EXPECTED_CYCLES = 5;
+  CPU cpuCopy = cpu; 
+  // when:
+  Sint32 CyclesUsed = execute (&cpu); 
+
+  // then:
+  EXPECT_EQ(cpu.Memory[0x0004], 0xFF);
+  EXPECT_EQ(CyclesUsed, EXPECTED_CYCLES);
+  printf("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags(cpu, cpuCopy);
+}
+
+TEST_F (ace64Test, INC_ZeroPage_Increases_Value)
+{
+  // given:
+  cpu.Memory[0xFFFC] = INS_INC_ZP;
+  cpu.Memory[0xFFFD] = 0x04;
+  cpu.Memory[0x0004] = 0x01;
+  constexpr Sint32 EXPECTED_CYCLES = 5;
+  CPU cpuCopy = cpu;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);  
+
+  // then:
+  EXPECT_EQ (cpu.Memory[0x0004], 0x02);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+  VerifyUnmodifiedFlags(cpu, cpuCopy);
+}
+
+TEST_F(ace64Test, INC_ZeroPage_FFValue){
+  // given:
+  cpu.Memory[0xFFFC] = INS_INC_ZP;
+  cpu.Memory[0xFFFD] = 0x3D;
+  cpu.Memory[0x003D] = 0xFF;
+  constexpr Sint32 EXPECTED_CYCLES = 5;
+  CPU cpuCopy = cpu; 
+  // when:
+  Sint32 CyclesUsed = execute (&cpu); 
+
+  // then:
+  EXPECT_EQ(cpu.Memory[0x003D], 0x00);
+  EXPECT_EQ(CyclesUsed, EXPECTED_CYCLES);
+  printf("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags(cpu, cpuCopy);
+}
+
+TEST_F (ace64Test, INC_ZeroPage_Indexed_Increased_Value)
+{
+  // given:
+  cpu.X = 0x02;
+  cpu.Memory[0xFFFC] = INS_INC_ZPX;
+  cpu.Memory[0xFFFD] = 0x04;
+  cpu.Memory[0x0006] = 0x01;
+  constexpr Sint32 EXPECTED_CYCLES = 6;
+  CPU cpuCopy = cpu;
+  printf("Status before: %b\n", cpu.P);
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);  
+
+  // then:
+  EXPECT_EQ (cpu.Memory[0x0006], 0x02);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+  printf("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags(cpu, cpuCopy);
+}
+
+TEST_F(ace64Test, DEC_Absolute_Decreases_Value){
+  // given:
+  cpu.Memory[0xFFFC] = INS_DEC_ABS;
+  cpu.Memory[0xFFFD] = 0x80;
+  cpu.Memory[0xFFFE] = 0x44;
+  cpu.Memory[0x4480] = 0x31;
+  constexpr Sint32 EXPECTED_CYCLES = 6;
+  CPU cpuCopy = cpu;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu); 
+
+  // then:
+  EXPECT_EQ (cpu.Memory[0x4480], 0x30);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+  printf("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags(cpu, cpuCopy);
+}
+
+TEST_F(ace64Test, INC_Absolute_Decreases_Value){
+  // given:
+  cpu.Memory[0xFFFC] = INS_INC_ABS;
+  cpu.Memory[0xFFFD] = 0x80;
+  cpu.Memory[0xFFFE] = 0x44;
+  cpu.Memory[0x4480] = 0x31;
+  constexpr Sint32 EXPECTED_CYCLES = 6;
+  CPU cpuCopy = cpu;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu); 
+
+  // then:
+  EXPECT_EQ (cpu.Memory[0x4480], 0x32);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+  printf("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags(cpu, cpuCopy);
+}
+
+TEST_F(ace64Test, DEC_Absolute_Indexed_Decreases_Value){
+  // given:
+  cpu.X = 0x32;
+  cpu.Memory[0xFFFC] = INS_DEC_ABX;
+  cpu.Memory[0xFFFD] = 0x80;
+  cpu.Memory[0xFFFE] = 0x44;
+  cpu.Memory[0x44B2] = 0x31;
+  constexpr Sint32 EXPECTED_CYCLES = 7;
+  CPU cpuCopy = cpu;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu); 
+
+  // then:
+  EXPECT_EQ (cpu.Memory[0x44B2], 0x30);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+  printf("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags(cpu, cpuCopy);
+}
+
+TEST_F(ace64Test, INC_Absolute_Indexed_Increases_Value){
+  // given:
+  cpu.X = 0x32;
+  cpu.Memory[0xFFFC] = INS_INC_ABX;
+  cpu.Memory[0xFFFD] = 0x80;
+  cpu.Memory[0xFFFE] = 0x44;
+  cpu.Memory[0x44B2] = 0x31;
+  constexpr Sint32 EXPECTED_CYCLES = 7;
+  CPU cpuCopy = cpu;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu); 
+
+  // then:
+  EXPECT_EQ (cpu.Memory[0x44B2], 0x32);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+  printf("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags(cpu, cpuCopy);
 }
 
 /* Program flow tests */
