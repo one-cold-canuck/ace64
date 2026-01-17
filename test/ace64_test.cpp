@@ -13,8 +13,8 @@ public:
   virtual void
   SetUp ()
   {
-    InitializeMemory (&cpu);
-    Reset (&cpu);
+    initialize_memory (&cpu);
+    reset (&cpu);
   }
   virtual void
   TearDown ()
@@ -67,6 +67,11 @@ TEST_F (ace64Test, StackPointerCheckUnderflow)
   VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
+/***************************************************
+ * Begin Memory Instruction Tests
+ */
+
+/* INS_LDA - All modes */
 TEST_F (ace64Test, LDAImmediate)
 {
 
@@ -77,7 +82,7 @@ TEST_F (ace64Test, LDAImmediate)
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.A, 0x77);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
@@ -97,7 +102,7 @@ TEST_F (ace64Test, LDAZeroPage)
   constexpr Sint32 EXPECTED_CYCLES = 3;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.A, 0x37);
@@ -119,7 +124,7 @@ TEST_F (ace64Test, LDAZeroPageX)
   constexpr Sint32 EXPECTED_CYCLES = 4;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.A, 0x37);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
@@ -140,7 +145,7 @@ TEST_F (ace64Test, LDAZeroPageXBoundaryCheck)
   constexpr Sint32 EXPECTED_CYCLES = 4;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.A, 0x37);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
@@ -160,7 +165,7 @@ TEST_F (ace64Test, LDAImmediateZeroValue)
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.A, 0x0);
@@ -182,7 +187,7 @@ TEST_F (ace64Test, LDAAbsolute)
   CPU cpuCopy = cpu;
   //
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.A, 0x77);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
@@ -203,7 +208,7 @@ TEST_F (ace64Test, LDAAbsoluteX)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.A, 0x77);
@@ -226,7 +231,7 @@ TEST_F (ace64Test, LDAAbsoluteXBoundary)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.A, 0x77);
@@ -249,7 +254,7 @@ TEST_F (ace64Test, LDAAbsoluteY)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.A, 0x77);
@@ -272,7 +277,7 @@ TEST_F (ace64Test, LDAAbsoluteYBoundary)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.A, 0x77);
@@ -296,7 +301,7 @@ TEST_F (ace64Test, LDAIndirectX)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.A, 0x77);
@@ -320,7 +325,7 @@ TEST_F (ace64Test, LDAIndirectY)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.A, 0x77);
@@ -344,7 +349,7 @@ TEST_F (ace64Test, LDAAIndirectYBoundary)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.A, 0x77);
@@ -354,6 +359,7 @@ TEST_F (ace64Test, LDAAIndirectYBoundary)
   VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
+/* INS_LDX - All Modes */
 TEST_F (ace64Test, LDXImmediate)
 {
 
@@ -364,7 +370,7 @@ TEST_F (ace64Test, LDXImmediate)
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.X, 0x77);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
@@ -384,7 +390,7 @@ TEST_F (ace64Test, LDXZeroPage)
   constexpr Sint32 EXPECTED_CYCLES = 3;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.X, 0x37);
@@ -406,7 +412,7 @@ TEST_F (ace64Test, LDXZeroPageY)
   constexpr Sint32 EXPECTED_CYCLES = 4;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.X, 0x37);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
@@ -427,7 +433,7 @@ TEST_F (ace64Test, LDXZeroPageYBoundaryCheck)
   constexpr Sint32 EXPECTED_CYCLES = 4;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.X, 0x37);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
@@ -448,7 +454,7 @@ TEST_F (ace64Test, LDXAbsolute)
   CPU cpuCopy = cpu;
   //
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.X, 0x77);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
@@ -470,7 +476,7 @@ TEST_F (ace64Test, LDXAbsoluteY)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.X, 0x77);
@@ -493,7 +499,7 @@ TEST_F (ace64Test, LDXAbsoluteYBoundary)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.X, 0x77);
@@ -502,17 +508,19 @@ TEST_F (ace64Test, LDXAbsoluteYBoundary)
   EXPECT_FALSE (cpu.P & FLAG_NEGATIVE);
   VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
+
+/* INS_LDY - All Modes */
 TEST_F (ace64Test, LDYImmediate)
 {
 
   // given:
   cpu.Memory[0xFFFC] = INS_LDY_IM;
   cpu.Memory[0xFFFD] = 0x77;
-  CPU cpuCopy = cpu;
+CPU cpuCopy = cpu;
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.Y, 0x77);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
@@ -532,7 +540,7 @@ TEST_F (ace64Test, LDYZeroPage)
   constexpr Sint32 EXPECTED_CYCLES = 3;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Y, 0x37);
@@ -554,7 +562,7 @@ TEST_F (ace64Test, LDYZeroPageX)
   constexpr Sint32 EXPECTED_CYCLES = 4;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.Y, 0x37);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
@@ -575,7 +583,7 @@ TEST_F (ace64Test, LDYZeroPageXBoundaryCheck)
   constexpr Sint32 EXPECTED_CYCLES = 4;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.Y, 0x37);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
@@ -596,7 +604,7 @@ TEST_F (ace64Test, LDYAbsolute)
   CPU cpuCopy = cpu;
   //
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.Y, 0x77);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
@@ -618,7 +626,7 @@ TEST_F (ace64Test, LDYAbsoluteX)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Y, 0x77);
@@ -641,7 +649,7 @@ TEST_F (ace64Test, LDYAbsoluteXBoundary)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Y, 0x77);
@@ -651,27 +659,7 @@ TEST_F (ace64Test, LDYAbsoluteXBoundary)
   VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
-TEST_F (ace64Test, JMPAbsolutePCContainsAddress)
-{
-  // given:
-  cpu.Memory[0xFFFC] = INS_JMP_ABS;
-  cpu.Memory[0xFFFD] = 0x80;
-  cpu.Memory[0xFFFE] = 0x44;
-  cpu.Memory[0x4480] = INS_LDA_ABS;
-
-  constexpr Sint32 EXPECTED_CYCLES = 3;
-  CPU cpuCopy = cpu;
-
-  // when:
-  Sint32 CyclesUsed = Execute (&cpu);
-
-  // then:
-  EXPECT_EQ (cpu.PC, 0x4480);
-  EXPECT_FALSE (cpu.P & FLAG_ZERO);
-  EXPECT_FALSE (cpu.P & FLAG_NEGATIVE);
-  VerifyUnmodifiedFlags (cpu, cpuCopy);
-}
-
+/* INS_STA - All Modes */
 TEST_F (ace64Test, STAZPWritesARegisterToMemory)
 {
   // given:
@@ -683,11 +671,11 @@ TEST_F (ace64Test, STAZPWritesARegisterToMemory)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.A, 0x37);
-  EXPECT_EQ (cpu.Memory[0x3D], 0x37);
+  EXPECT_EQ (cpu.Memory[0x003D], 0x37);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
   VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
@@ -704,7 +692,7 @@ TEST_F (ace64Test, STAZPXWritesARegisterToMemory)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.A, 0x37);
@@ -725,7 +713,7 @@ TEST_F (ace64Test, STAAbsolute)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.A, 0x77);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
@@ -745,7 +733,7 @@ TEST_F (ace64Test, STAAbsoluteX)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x4490], 0x77);
@@ -766,7 +754,7 @@ TEST_F (ace64Test, STAAbsoluteXBoundary)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x457F], 0x77);
@@ -787,7 +775,7 @@ TEST_F (ace64Test, STAAbsoluteY)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x4490], 0x77);
@@ -808,7 +796,7 @@ TEST_F (ace64Test, STAAbsoluteYBoundary)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x457F], 0x77);
@@ -832,7 +820,7 @@ TEST_F (ace64Test, STAIndirectX)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x8000], 0x77);
@@ -854,7 +842,7 @@ TEST_F (ace64Test, STAIndirectY)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x8004], 0x77);
@@ -876,11 +864,112 @@ TEST_F (ace64Test, STAAIndirectYBoundary)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x457F], 0x77);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+  VerifyUnmodifiedFlags (cpu, cpuCopy);
+}
+
+/* INS_STX - All Modes */
+TEST_F (ace64Test, STX_ZeroPoint_Writes_X_Register_To_Memory)
+{
+  // given:
+  cpu.X = 0x37;
+  cpu.Memory[0xFFFC] = INS_STX_ZP;
+  cpu.Memory[0xFFFD] = 0x3D;
+
+  constexpr Sint32 EXPECTED_CYCLES = 3;
+  CPU cpuCopy = cpu;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);
+
+  // then:
+  EXPECT_EQ (cpu.X, 0x37);
+  EXPECT_EQ (cpu.Memory[0x003D], 0x37);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+  VerifyUnmodifiedFlags (cpu, cpuCopy);
+}
+
+TEST_F (ace64Test, STXAbsolute)
+{
+
+  // given:
+  cpu.X = 0x77;
+  cpu.Memory[0xFFFC] = INS_STX_ABS;
+  cpu.Memory[0xFFFD] = 0x80;
+  cpu.Memory[0xFFFE] = 0x44; // 0x4480
+  constexpr Sint32 EXPECTED_CYCLES = 4;
+  CPU cpuCopy = cpu;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);
+
+  // then:
+  EXPECT_EQ (cpu.X, 0x77);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+  EXPECT_EQ (cpu.Memory[0x4480], 0x77);
+  VerifyUnmodifiedFlags (cpu, cpuCopy);
+}
+
+TEST_F (ace64Test, STX_ZeroPoint_Indexed_Address_Contains_Value){
+  //
+  // given:
+  cpu.Y = 0x02;
+  cpu.X = 0x37;
+  cpu.Memory[0xFFFC] = INS_STX_ZPY;
+  cpu.Memory[0xFFFD] = 0x04;
+  cpu.Memory[0x0006] = 0x00;
+  CPU cpuCopy = cpu;
+  constexpr Sint32 EXPECTED_CYCLES = 4;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);
+
+  // then:
+  EXPECT_EQ (cpu.Memory[0x0006], 0x37);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+}
+
+TEST_F (ace64Test, STY_ZerPoint_Address_Contains_Value){
+  
+  // given:
+  cpu.Y = 0x37;
+  cpu.Memory[0xFFFC] = INS_STY_ZP;
+  cpu.Memory[0xFFFD] = 0x3D;
+
+  constexpr Sint32 EXPECTED_CYCLES = 3;
+  CPU cpuCopy = cpu;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);
+
+  // then:
+  EXPECT_EQ (cpu.Memory[0x003D], 0x37);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+}
+
+/* Program flow tests */
+TEST_F (ace64Test, JMPAbsolutePCContainsAddress)
+{
+  // given:
+  cpu.Memory[0xFFFC] = INS_JMP_ABS;
+  cpu.Memory[0xFFFD] = 0x80;
+  cpu.Memory[0xFFFE] = 0x44;
+  cpu.Memory[0x4480] = INS_LDA_ABS;
+
+  constexpr Sint32 EXPECTED_CYCLES = 3;
+  CPU cpuCopy = cpu;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);
+
+  // then:
+  EXPECT_EQ (cpu.PC, 0x4480);
+  EXPECT_FALSE (cpu.P & FLAG_ZERO);
+  EXPECT_FALSE (cpu.P & FLAG_NEGATIVE);
   VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
@@ -894,7 +983,7 @@ TEST_F (ace64Test, TAXTestValues)
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.X, 0x42);
   EXPECT_FALSE (cpu.P & FLAG_ZERO);
@@ -912,7 +1001,7 @@ TEST_F (ace64Test, TAXTestZeroValue)
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.X, 0x00);
   EXPECT_TRUE (cpu.P & FLAG_ZERO);
@@ -930,7 +1019,7 @@ TEST_F (ace64Test, TAYTestValues)
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.Y, 0x42);
   EXPECT_FALSE (cpu.P & FLAG_ZERO);
@@ -948,7 +1037,7 @@ TEST_F (ace64Test, TAYTestZeroValue)
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.Y, 0x00);
   EXPECT_TRUE (cpu.P & FLAG_ZERO);
@@ -966,7 +1055,7 @@ TEST_F (ace64Test, TXATestValues)
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.A, 0x42);
   EXPECT_FALSE (cpu.P & FLAG_ZERO);
@@ -984,7 +1073,7 @@ TEST_F (ace64Test, TXATestZeroValue)
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.Y, 0x00);
   EXPECT_TRUE (cpu.P & FLAG_ZERO);
@@ -1002,7 +1091,7 @@ TEST_F (ace64Test, TYATestValues)
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.A, 0x42);
   EXPECT_FALSE (cpu.P & FLAG_ZERO);
@@ -1020,7 +1109,7 @@ TEST_F (ace64Test, TYATestZeroValue)
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.Y, 0x00);
   EXPECT_TRUE (cpu.P & FLAG_ZERO);
@@ -1038,7 +1127,7 @@ TEST_F (ace64Test, TSXTestValues)
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.X, 0x7A);
   EXPECT_FALSE (cpu.P & FLAG_ZERO);
@@ -1056,7 +1145,7 @@ TEST_F (ace64Test, TSXTestZeroValue)
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.X, 0x00);
   EXPECT_TRUE (cpu.P & FLAG_ZERO);
@@ -1074,7 +1163,7 @@ TEST_F (ace64Test, TXSTestValues)
   constexpr Sint32 EXPECTED_CYCLES = 2;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.SP, 0x7A);
   EXPECT_FALSE (cpu.P & FLAG_ZERO);
@@ -1092,7 +1181,7 @@ TEST_F (ace64Test, PHATestStackPush)
   constexpr Sint32 EXPECTED_CYCLES = 3;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.Memory[0x01FF], 0x42);
   EXPECT_EQ (cpu.SP, 0xFE);
@@ -1109,7 +1198,7 @@ TEST_F (ace64Test, PHPTestStackPush)
   constexpr Sint32 EXPECTED_CYCLES = 3;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.Memory[0x01FF], FLAG_OVERFLOW | FLAG_BREAK | FLAG_CARRY);
   EXPECT_EQ (cpu.SP, 0xFE);
@@ -1126,11 +1215,11 @@ TEST_F (ace64Test, PLATestAccumulatorLoad)
   constexpr Sint32 EXPECTED_CYCLES = 3;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
   EXPECT_EQ (cpu.A, 0x88);
   EXPECT_EQ (cpu.SP, 0xFD);
-  EXPECT_EQ(0x0100+cpu.SP, 0x01FD);
+  EXPECT_EQ (0x0100 + cpu.SP, 0x01FD);
 }
 
 TEST_F (ace64Test, PLPTestStatusLoad)
@@ -1139,14 +1228,14 @@ TEST_F (ace64Test, PLPTestStatusLoad)
   // given:
   cpu.SP = 0xFC;
   cpu.Memory[0xFFFC] = INS_PLP;
-  cpu.Memory[0x01FD] = FLAG_OVERFLOW|FLAG_BREAK|FLAG_CARRY;
+  cpu.Memory[0x01FD] = FLAG_OVERFLOW | FLAG_BREAK | FLAG_CARRY;
   CPU cpuCopy = cpu;
   constexpr Sint32 EXPECTED_CYCLES = 3;
 
   // when:
-  Sint32 CyclesUsed = Execute (&cpu);
+  Sint32 CyclesUsed = execute (&cpu);
 
-  EXPECT_EQ (cpu.P, FLAG_OVERFLOW|FLAG_BREAK|FLAG_CARRY);
+  EXPECT_EQ (cpu.P, FLAG_OVERFLOW | FLAG_BREAK | FLAG_CARRY);
   EXPECT_EQ (cpu.SP, 0xFD);
-  EXPECT_EQ(0x0100+cpu.SP, 0x01FD);
+  EXPECT_EQ (0x0100 + cpu.SP, 0x01FD);
 }
