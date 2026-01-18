@@ -1,4 +1,3 @@
-#include "../code/cpu.c"
 #include "../code/cpu.h"
 #include <gtest/gtest.h>
 // TODO: These tests need to be implemented:

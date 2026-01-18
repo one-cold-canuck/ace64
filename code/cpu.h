@@ -1,4 +1,11 @@
+#include <stdbool.h>
 #ifndef CPU_H
+#define CPU_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* cpu.h
  * Emulation of the MOS6502 processor.
  */
@@ -12,14 +19,14 @@
 
 // AND: add 1 cycle if page boundary is crossed
 // Flags: N----Z-
-#define INS_AND_IM 0x29
-#define INS_AND_ZP 0x25
-#define INS_AND_ZPX 0x35
-#define INS_AND_ABS 0x2D
-#define INS_AND_ABX 0x3D
-#define INS_AND_ABY 0x39
-#define INS_AND_IDX 0x21
-#define INS_AND_IDY 0x31
+#define INS_AND_IM 0x29   // implemented
+#define INS_AND_ZP 0x25   // implemented
+#define INS_AND_ZPX 0x35   // implemented
+#define INS_AND_ABS 0x2D   // implemented
+#define INS_AND_ABX 0x3D   // implemented
+#define INS_AND_ABY 0x39   // implemented
+#define INS_AND_IDX 0x21   // implemented
+#define INS_AND_IDY 0x31   // implemented
 
 // ASL: Arithmetic Shift Left: bits shifted 1 position, 0 shifted into bit 0,
 // bit 7 -> Carry Flags: N-----ZC
@@ -308,18 +315,25 @@ typedef struct
   Byte Memory[MAX_MEMORY];
 } CPU;
 
-void initialize_memory (CPU *cpu);
-void reset (CPU *cpu);
-Byte fetch_byte (CPU *cpu, Sint32 *cycles);
-void burn_byte (CPU *cpu, Sint32 *cycles);
-Word fetch_word (CPU *cpu, Sint32 *cycles);
-Byte read_byte (CPU *cpu, Word address, Sint32 *cycles);
-Word read_word (CPU *cpu, Byte address, Sint32 *cycles);
-void write_byte (CPU *cpu, Word address, Byte value, Sint32 *cycles);
-void write_word (CPU *cpu, Word value, Byte address, Sint32 *cycles);
-void set_status_flag (Byte *flags, Byte *value);
-Word get_word_address (Byte loByte, Byte hiByte);
-Sint32 execute (CPU *cpu);
+typedef void (*OpcodeFunction)(CPU *cpu, Sint32 *cycles);
 
-#define CPU_H
+extern void initialize_memory (CPU *cpu);
+extern void reset (CPU *cpu);
+extern Byte fetch_byte (CPU *cpu, Sint32 *cycles);
+extern void burn_cycle (CPU *cpu, Sint32 *cycles);
+extern Word fetch_word (CPU *cpu, Sint32 *cycles);
+extern Byte read_byte (CPU *cpu, Word address, Sint32 *cycles);
+extern Word read_word (CPU *cpu, Byte address, Sint32 *cycles);
+extern void write_byte (CPU *cpu, Word address, Byte value, Sint32 *cycles);
+extern void write_word (CPU *cpu, Word value, Byte address, Sint32 *cycles);
+extern void set_status_flag (Byte *flags, Byte value);
+extern void set_carry_flag (Byte *flags);
+extern void clear_carry_flag (Byte *flags);
+extern Word get_word_address (Byte loByte, Byte hiByte);
+extern Sint32 execute (CPU *cpu);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif // !CPU_H
