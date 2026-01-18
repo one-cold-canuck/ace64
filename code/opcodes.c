@@ -112,7 +112,6 @@ stack_pop (CPU *cpu, Sint32 *cycles)
   return read_byte (cpu, address, cycles);
 }
 
-// Opcode functions
 Word
 get_addr_abs (CPU *cpu, Sint32 *cycles)
 {
@@ -121,6 +120,44 @@ get_addr_abs (CPU *cpu, Sint32 *cycles)
 
   Word address = get_word_address (loByte, hiByte);
   return address;
+}
+
+Byte
+perform_asl_steps (CPU *cpu, Byte value)
+{
+  if (value & 0x80)
+    {
+      set_carry_flag (&cpu->P);
+    }
+  else
+    {
+      clear_carry_flag (&cpu->P);
+    }
+
+  Byte result = value << 1;
+
+  set_status_flag (&cpu->P, result);
+
+  return result;
+}
+
+Byte
+perform_lsr_steps (CPU *cpu, Byte value)
+{
+  if (value & 0x01)
+    {
+      set_carry_flag (&cpu->P);
+    }
+  else
+    {
+      clear_carry_flag (&cpu->P);
+    }
+
+  Byte result = value >> 1;
+
+  set_status_flag (&cpu->P, result);
+
+  return result;
 }
 
 // Opcode functions:
@@ -205,36 +242,53 @@ void
 ins_asl_acc (CPU *cpu, Sint32 *cycles)
 {
   burn_cycle (cpu, cycles);
-  if (cpu->A & 0x80)
-    {
-      set_carry_flag (&cpu->P);
-    }
-  else
-    {
-      clear_carry_flag (&cpu->P);
-    }
-  cpu->A = cpu->A << 1;
-  set_status_flag (&cpu->P, cpu->A);
+  cpu->A = perform_asl_steps (cpu, cpu->A);
 }
 void
 ins_asl_zp (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = fetch_byte (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+
+  write_byte (cpu, address, value, cycles);
+
+  value = perform_asl_steps (cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
+
 void
 ins_asl_zpx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_zpx (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+
+  write_byte (cpu, address, value, cycles);
+
+  value = perform_asl_steps (cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
+
 void
 ins_asl_abs (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abs (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+
+  write_byte (cpu, address, value, cycles);
+  value = perform_asl_steps (cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
+
 void
 ins_asl_abx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abx(cpu, cycles, true);
+  Byte value = read_byte (cpu, address, cycles);
+
+  write_byte (cpu, address, value, cycles);
+  value = perform_asl_steps(cpu, value);
+  write_byte (cpu, address, value, cycles);
+
 }
 
 // EOR: Bitwise exclusive OR with ACC. Add 1 cycle if page boundary is crossed.
@@ -242,8 +296,11 @@ ins_asl_abx (CPU *cpu, Sint32 *cycles)
 void
 ins_eor_im (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Byte value = fetch_byte(cpu, cycles);
+  cpu->A = cpu->A ^ value;
+  set_status_flag(&cpu->P, cpu->A);
 }
+
 void
 ins_eor_zp (CPU *cpu, Sint32 *cycles)
 {
@@ -288,27 +345,50 @@ ins_eor_idy (CPU *cpu, Sint32 *cycles)
 void
 ins_lsr_acc (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle(cpu, cycles);
+  cpu->A = perform_lsr_steps(cpu, cpu->A);
 }
 void
 ins_lsr_zp (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = fetch_byte (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+
+  write_byte (cpu, address, value, cycles);
+
+  value = perform_lsr_steps (cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
 void
 ins_lsr_zpx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_zpx (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+
+  write_byte (cpu, address, value, cycles);
+
+  value = perform_lsr_steps (cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
 void
 ins_lsr_abs (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abs (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+
+  write_byte (cpu, address, value, cycles);
+  value = perform_lsr_steps (cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
 void
 ins_lsr_abx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abx(cpu, cycles, true);
+  Byte value = read_byte (cpu, address, cycles);
+
+  write_byte (cpu, address, value, cycles);
+  value = perform_lsr_steps(cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
 
 // ORA: Bitwise OR with ACC: add 1 cycle if page boundary is crossed
@@ -628,14 +708,14 @@ ins_jmp_ind (CPU *cpu, Sint32 *cycles)
 void
 ins_jsr (CPU *cpu, Sint32 *cycles)
 {
-  Byte loByte = fetch_byte(cpu, cycles);
+  Byte loByte = fetch_byte (cpu, cycles);
 
-  burn_cycle(cpu, cycles);
+  burn_cycle (cpu, cycles);
 
-  stack_push(cpu, (cpu->PC >> 8) & 0xFF, cycles);
-  stack_push(cpu, cpu->PC & 0xFF, cycles);
+  stack_push (cpu, (cpu->PC >> 8) & 0xFF, cycles);
+  stack_push (cpu, cpu->PC & 0xFF, cycles);
 
-  Byte hiByte = fetch_byte(cpu, cycles);
+  Byte hiByte = fetch_byte (cpu, cycles);
   cpu->PC = (hiByte << 8) | loByte;
 } // Implemented
 
@@ -958,28 +1038,28 @@ ins_stx_zpy (CPU *cpu, Sint32 *cycles)
 void
 ins_stx_abs (CPU *cpu, Sint32 *cycles)
 {
-  Word address = get_addr_abs(cpu, cycles);
+  Word address = get_addr_abs (cpu, cycles);
   write_byte (cpu, address, cpu->X, cycles);
 } // Implemented
 
 void
 ins_sty_zp (CPU *cpu, Sint32 *cycles)
 {
-  Word address = fetch_byte(cpu, cycles);
-  write_byte(cpu, address, cpu->Y, cycles);
+  Word address = fetch_byte (cpu, cycles);
+  write_byte (cpu, address, cpu->Y, cycles);
 } // Implemented
 
 void
 ins_sty_zpx (CPU *cpu, Sint32 *cycles)
 {
-  Word address = get_addr_zpx(cpu, cycles);
-  write_byte(cpu, address, cpu->Y, cycles);
+  Word address = get_addr_zpx (cpu, cycles);
+  write_byte (cpu, address, cpu->Y, cycles);
 } // Implemented
 
 void
 ins_sty_abs (CPU *cpu, Sint32 *cycles)
 {
-  Word address = get_addr_abs(cpu, cycles);
+  Word address = get_addr_abs (cpu, cycles);
   write_byte (cpu, address, cpu->Y, cycles);
 } // Implemented
 
@@ -1165,10 +1245,10 @@ ins_tsx (CPU *cpu, Sint32 *cycles)
 void
 ins_plp (CPU *cpu, Sint32 *cycles)
 {
-  burn_cycle(cpu, cycles);
-  burn_cycle(cpu, cycles);
+  burn_cycle (cpu, cycles);
+  burn_cycle (cpu, cycles);
 
-  Byte status = stack_pop(cpu, cycles);
+  Byte status = stack_pop (cpu, cycles);
 
   cpu->P = (status & 0xEF) | 0x20;
 } // Implemented

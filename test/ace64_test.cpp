@@ -728,7 +728,7 @@ TEST_F (ace64Test, STAAbsoluteX)
   cpu.Memory[0xFFFC] = INS_STA_ABX;
   cpu.Memory[0xFFFD] = 0x80;
   cpu.Memory[0xFFFE] = 0x44; // 0x4480
-  constexpr Sint32 EXPECTED_CYCLES = 4;
+  constexpr Sint32 EXPECTED_CYCLES = 5;
   CPU cpuCopy = cpu;
 
   // when:
@@ -770,7 +770,7 @@ TEST_F (ace64Test, STAAbsoluteY)
   cpu.Memory[0xFFFC] = INS_STA_ABY;
   cpu.Memory[0xFFFD] = 0x80;
   cpu.Memory[0xFFFE] = 0x44; // 0x4480
-  constexpr Sint32 EXPECTED_CYCLES = 4;
+  constexpr Sint32 EXPECTED_CYCLES = 5;
   CPU cpuCopy = cpu;
 
   // when:
@@ -837,7 +837,7 @@ TEST_F (ace64Test, STAIndirectY)
   cpu.Memory[0xFFFD] = 0x02;
   cpu.Memory[0x0002] = 0x00; // 0x4480
   cpu.Memory[0x0003] = 0x80;
-  constexpr Sint32 EXPECTED_CYCLES = 5;
+  constexpr Sint32 EXPECTED_CYCLES = 6;
   CPU cpuCopy = cpu;
 
   // when:
@@ -960,12 +960,12 @@ TEST_F (ace64Test, DEC_ZeroPage_Decreases_Value)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = execute (&cpu);  
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x003D], 0x00);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
-  VerifyUnmodifiedFlags(cpu, cpuCopy);
+  VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
 TEST_F (ace64Test, DEC_ZeroPage_Indexed_Decreases_Value)
@@ -977,32 +977,33 @@ TEST_F (ace64Test, DEC_ZeroPage_Indexed_Decreases_Value)
   cpu.Memory[0x0006] = 0x01;
   constexpr Sint32 EXPECTED_CYCLES = 6;
   CPU cpuCopy = cpu;
-  printf("Status before: %b\n", cpu.P);
+  printf ("Status before: %b\n", cpu.P);
   // when:
-  Sint32 CyclesUsed = execute (&cpu);  
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x0006], 0x00);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
-  printf("Status: %b\n", cpu.P);
-  VerifyUnmodifiedFlags(cpu, cpuCopy);
+  printf ("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
-TEST_F(ace64Test, DEC_ZeroPage_ZeroValue){
+TEST_F (ace64Test, DEC_ZeroPage_ZeroValue)
+{
   // given:
   cpu.Memory[0xFFFC] = INS_DEC_ZP;
   cpu.Memory[0xFFFD] = 0x04;
   cpu.Memory[0x0004] = 0x00;
   constexpr Sint32 EXPECTED_CYCLES = 5;
-  CPU cpuCopy = cpu; 
+  CPU cpuCopy = cpu;
   // when:
-  Sint32 CyclesUsed = execute (&cpu); 
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
-  EXPECT_EQ(cpu.Memory[0x0004], 0xFF);
-  EXPECT_EQ(CyclesUsed, EXPECTED_CYCLES);
-  printf("Status: %b\n", cpu.P);
-  VerifyUnmodifiedFlags(cpu, cpuCopy);
+  EXPECT_EQ (cpu.Memory[0x0004], 0xFF);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+  printf ("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
 TEST_F (ace64Test, INC_ZeroPage_Increases_Value)
@@ -1015,29 +1016,30 @@ TEST_F (ace64Test, INC_ZeroPage_Increases_Value)
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = execute (&cpu);  
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x0004], 0x02);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
-  VerifyUnmodifiedFlags(cpu, cpuCopy);
+  VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
-TEST_F(ace64Test, INC_ZeroPage_FFValue){
+TEST_F (ace64Test, INC_ZeroPage_FFValue)
+{
   // given:
   cpu.Memory[0xFFFC] = INS_INC_ZP;
   cpu.Memory[0xFFFD] = 0x3D;
   cpu.Memory[0x003D] = 0xFF;
   constexpr Sint32 EXPECTED_CYCLES = 5;
-  CPU cpuCopy = cpu; 
+  CPU cpuCopy = cpu;
   // when:
-  Sint32 CyclesUsed = execute (&cpu); 
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
-  EXPECT_EQ(cpu.Memory[0x003D], 0x00);
-  EXPECT_EQ(CyclesUsed, EXPECTED_CYCLES);
-  printf("Status: %b\n", cpu.P);
-  VerifyUnmodifiedFlags(cpu, cpuCopy);
+  EXPECT_EQ (cpu.Memory[0x003D], 0x00);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+  printf ("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
 TEST_F (ace64Test, INC_ZeroPage_Indexed_Increased_Value)
@@ -1049,18 +1051,19 @@ TEST_F (ace64Test, INC_ZeroPage_Indexed_Increased_Value)
   cpu.Memory[0x0006] = 0x01;
   constexpr Sint32 EXPECTED_CYCLES = 6;
   CPU cpuCopy = cpu;
-  printf("Status before: %b\n", cpu.P);
+  printf ("Status before: %b\n", cpu.P);
   // when:
-  Sint32 CyclesUsed = execute (&cpu);  
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x0006], 0x02);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
-  printf("Status: %b\n", cpu.P);
-  VerifyUnmodifiedFlags(cpu, cpuCopy);
+  printf ("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
-TEST_F(ace64Test, DEC_Absolute_Decreases_Value){
+TEST_F (ace64Test, DEC_Absolute_Decreases_Value)
+{
   // given:
   cpu.Memory[0xFFFC] = INS_DEC_ABS;
   cpu.Memory[0xFFFD] = 0x80;
@@ -1070,16 +1073,17 @@ TEST_F(ace64Test, DEC_Absolute_Decreases_Value){
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = execute (&cpu); 
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x4480], 0x30);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
-  printf("Status: %b\n", cpu.P);
-  VerifyUnmodifiedFlags(cpu, cpuCopy);
+  printf ("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
-TEST_F(ace64Test, INC_Absolute_Decreases_Value){
+TEST_F (ace64Test, INC_Absolute_Decreases_Value)
+{
   // given:
   cpu.Memory[0xFFFC] = INS_INC_ABS;
   cpu.Memory[0xFFFD] = 0x80;
@@ -1089,16 +1093,17 @@ TEST_F(ace64Test, INC_Absolute_Decreases_Value){
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = execute (&cpu); 
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x4480], 0x32);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
-  printf("Status: %b\n", cpu.P);
-  VerifyUnmodifiedFlags(cpu, cpuCopy);
+  printf ("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
-TEST_F(ace64Test, DEC_Absolute_Indexed_Decreases_Value){
+TEST_F (ace64Test, DEC_Absolute_Indexed_Decreases_Value)
+{
   // given:
   cpu.X = 0x32;
   cpu.Memory[0xFFFC] = INS_DEC_ABX;
@@ -1109,16 +1114,17 @@ TEST_F(ace64Test, DEC_Absolute_Indexed_Decreases_Value){
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = execute (&cpu); 
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x44B2], 0x30);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
-  printf("Status: %b\n", cpu.P);
-  VerifyUnmodifiedFlags(cpu, cpuCopy);
+  printf ("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
-TEST_F(ace64Test, INC_Absolute_Indexed_Increases_Value){
+TEST_F (ace64Test, INC_Absolute_Indexed_Increases_Value)
+{
   // given:
   cpu.X = 0x32;
   cpu.Memory[0xFFFC] = INS_INC_ABX;
@@ -1129,13 +1135,13 @@ TEST_F(ace64Test, INC_Absolute_Indexed_Increases_Value){
   CPU cpuCopy = cpu;
 
   // when:
-  Sint32 CyclesUsed = execute (&cpu); 
+  Sint32 CyclesUsed = execute (&cpu);
 
   // then:
   EXPECT_EQ (cpu.Memory[0x44B2], 0x32);
   EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
-  printf("Status: %b\n", cpu.P);
-  VerifyUnmodifiedFlags(cpu, cpuCopy);
+  printf ("Status: %b\n", cpu.P);
+  VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
 /* Program flow tests */
@@ -1160,6 +1166,27 @@ TEST_F (ace64Test, JMPAbsolutePCContainsAddress)
   VerifyUnmodifiedFlags (cpu, cpuCopy);
 }
 
+TEST_F (ace64Test, JSRTestPushAndJump)
+{
+  // given:
+  Word startPC = 0x1000;
+  cpu.PC = startPC;
+  cpu.Memory[startPC] = 0x20;
+  cpu.Memory[startPC + 1] = 0x00;
+  cpu.Memory[startPC + 2] = 0x40;
+
+  cpu.SP = 0xFF;
+
+  constexpr Sint32 EXPECTED_CYCLES = 6;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);
+
+  // then:
+  EXPECT_EQ (cpu.PC, 0x4000);
+  EXPECT_EQ (cpu.SP, 0xFD);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+}
 TEST_F (ace64Test, TAXTestValues)
 {
 
@@ -1379,7 +1406,7 @@ TEST_F (ace64Test, PHPTestStackPush)
 
   // given:
   cpu.Memory[0xFFFC] = INS_PHP;
-  cpu.P |= FLAG_OVERFLOW | FLAG_BREAK | FLAG_CARRY;
+  cpu.P |= FLAG_OVERFLOW | FLAG_CARRY;
 
   CPU cpuCopy = cpu;
   constexpr Sint32 EXPECTED_CYCLES = 3;
@@ -1387,7 +1414,9 @@ TEST_F (ace64Test, PHPTestStackPush)
   // when:
   Sint32 CyclesUsed = execute (&cpu);
 
-  EXPECT_EQ (cpu.Memory[0x01FF], FLAG_OVERFLOW | FLAG_BREAK | FLAG_CARRY);
+  // then:
+  Byte expectedValue = FLAG_OVERFLOW | FLAG_CARRY | 0x30;
+  EXPECT_EQ (cpu.Memory[0x01FF], expectedValue);
   EXPECT_EQ (cpu.SP, 0xFE);
 }
 
@@ -1413,16 +1442,243 @@ TEST_F (ace64Test, PLPTestStatusLoad)
 {
 
   // given:
-  cpu.SP = 0xFC;
+  Byte stackValue = FLAG_NEGATIVE | FLAG_OVERFLOW | 0x10 | FLAG_CARRY;
+  cpu.SP = 0xFE;
+  cpu.Memory[0x01FF] = stackValue;
+
   cpu.Memory[0xFFFC] = INS_PLP;
-  cpu.Memory[0x01FD] = FLAG_OVERFLOW | FLAG_BREAK | FLAG_CARRY;
   CPU cpuCopy = cpu;
+
   constexpr Sint32 EXPECTED_CYCLES = 3;
 
   // when:
   Sint32 CyclesUsed = execute (&cpu);
 
-  EXPECT_EQ (cpu.P, FLAG_OVERFLOW | FLAG_BREAK | FLAG_CARRY);
-  EXPECT_EQ (cpu.SP, 0xFD);
-  EXPECT_EQ (0x0100 + cpu.SP, 0x01FD);
+  // then:
+
+  Byte expected = (stackValue & ~0x10) | 0x20;
+  EXPECT_EQ (cpu.P, expected);
+  EXPECT_EQ (cpu.SP, 0xFF);
+}
+
+TEST_F (ace64Test, ASLAccumulatorMode)
+{
+  // given:
+  cpu.PC = 0x1000;
+  cpu.Memory[0x1000] = 0x0A;
+  cpu.A = 0x81;
+  cpu.P = 0x00;
+  constexpr Sint32 EXPECTED_CYCLES = 2;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);
+
+  // then:
+  EXPECT_EQ (cpu.A, 0x02);
+  EXPECT_TRUE (cpu.P & FLAG_CARRY);
+  EXPECT_FALSE (cpu.P & FLAG_NEGATIVE);
+  EXPECT_FALSE (cpu.P & FLAG_ZERO);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+}
+
+TEST_F (ace64Test, ASLZeroPageMode)
+{
+  // given:
+  cpu.PC = 0x1000;
+  cpu.Memory[0x1000] = 0x06;
+  cpu.Memory[0x1001] = 0x80;
+  cpu.Memory[0x0080] = 0xC0;
+  cpu.P = 0x00;
+
+  constexpr Sint32 EXPECTED_CYCLES = 5;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);
+
+  // then:
+  EXPECT_EQ (cpu.Memory[0x0080], 0x80);
+  EXPECT_TRUE (cpu.P & FLAG_CARRY);
+  EXPECT_TRUE (cpu.P & FLAG_NEGATIVE);
+  EXPECT_FALSE (cpu.P & FLAG_ZERO);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+}
+
+TEST_F (ace64Test, ASLZeroPageXMode)
+{
+  // given:
+  cpu.PC = 0x1000;
+  cpu.Memory[0x1000] = 0x16;
+  cpu.Memory[0x1001] = 0x80;
+
+  cpu.X = 0x05;
+  cpu.Memory[0x0085] = 0xC0;
+  cpu.P = 0x00;
+
+  constexpr Sint32 EXPECTED_CYCLES = 6;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);
+
+  // then:
+  EXPECT_EQ (cpu.Memory[0x0085], 0x80);
+  EXPECT_TRUE (cpu.P & FLAG_CARRY);
+  EXPECT_TRUE (cpu.P & FLAG_NEGATIVE);
+
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+}
+
+TEST_F(ace64Test, ASLZeroPageXWrappingTest)
+{
+  // given: 
+  // Base $FF + X $02 = Effective address $01 (NOT $0101)
+  cpu.PC = 0x1000;
+  cpu.Memory[0x1000] = 0x16; 
+  cpu.Memory[0x1001] = 0xFF; 
+  
+  cpu.X = 0x02;
+  cpu.Memory[0x0001] = 0x80; // Target is at $0001
+
+  // when:
+  execute(&cpu);
+
+  // then:
+  EXPECT_EQ(cpu.Memory[0x0001], 0x00); // $80 << 1 = $00
+  EXPECT_TRUE(cpu.P & FLAG_ZERO);
+  EXPECT_TRUE(cpu.P & FLAG_CARRY);
+}
+
+TEST_F(ace64Test, ASLAbsoluteTest){
+
+  cpu.PC = 0x1000;
+  cpu.Memory[0x1000] = INS_ASL_ABS;
+  cpu.Memory[0x1001] = 0x80;
+  cpu.Memory[0x1002] = 0x44;
+  cpu.Memory[0x4480] = 0xC0;
+  cpu.P = 0x00;
+
+  constexpr Sint32 EXPECTED_CYCLES = 6;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);
+
+  // then:
+  EXPECT_EQ (cpu.Memory[0x4480], 0x80);
+  EXPECT_TRUE (cpu.P & FLAG_CARRY);
+  EXPECT_TRUE (cpu.P & FLAG_NEGATIVE);
+  EXPECT_FALSE (cpu.P & FLAG_ZERO);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+}
+
+TEST_F(ace64Test, ASLAbsoluteXIndexedTest){
+
+  cpu.PC = 0x1000;
+  cpu.Memory[0x1000] = INS_ASL_ABX;
+  cpu.Memory[0x1001] = 0x80;
+  cpu.Memory[0x1002] = 0x44;
+  cpu.X = 0x05;
+  cpu.Memory[0x4485] = 0xC0;
+  cpu.P = 0x00;
+
+  constexpr Sint32 EXPECTED_CYCLES = 7;
+
+  // when:
+  Sint32 CyclesUsed = execute (&cpu);
+
+  // then:
+  EXPECT_EQ (cpu.Memory[0x4485], 0x80);
+  EXPECT_TRUE (cpu.P & FLAG_CARRY);
+  EXPECT_TRUE (cpu.P & FLAG_NEGATIVE);
+  EXPECT_FALSE (cpu.P & FLAG_ZERO);
+  EXPECT_EQ (CyclesUsed, EXPECTED_CYCLES);
+}
+
+TEST_F (ace64Test, LSRAccumulatorTest)
+{
+  // given:
+  // Binary: 0000 0011 ($03)
+  // Shift right: Bit 0 is '1', so Carry should be set.
+  // Result should be 0000 0001 ($01).
+  cpu.PC = 0x2000;
+  cpu.Memory[0x2000] = 0x4A; // LSR Accumulator opcode
+  cpu.A = 0x03;
+  cpu.P = FLAG_NEGATIVE; // Start with Negative set to see if it clears
+
+  // when:
+  execute (&cpu);
+
+  // then:
+  EXPECT_EQ (cpu.A, 0x01);
+  EXPECT_TRUE (cpu.P & FLAG_CARRY);     // Old bit 0 was 1
+  EXPECT_FALSE (cpu.P & FLAG_ZERO);     // Result is not 0
+  EXPECT_FALSE (cpu.P & FLAG_NEGATIVE); // LSR always clears bit 7
+}
+
+TEST_F(ace64Test, LSRZeroPageTest) {
+    // given: $0080 contains $03 (0000 0011)
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x46; 
+    cpu.Memory[0x1001] = 0x80;
+    cpu.Memory[0x0080] = 0x03;
+    cpu.P = 0x00;
+
+    // when: $03 >> 1 = $01, Carry = 1
+    Sint32 cycles = execute(&cpu);
+
+    // then:
+    EXPECT_EQ(cpu.Memory[0x0080], 0x01);
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);
+    EXPECT_EQ(cycles, 5);
+}
+
+TEST_F(ace64Test, LSRZeroPageXTest) {
+    // given: Base $FF + X $02 = Address $01 (Wrap)
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x56; 
+    cpu.Memory[0x1001] = 0xFF; 
+    cpu.X = 0x02;
+    cpu.Memory[0x0001] = 0x01; // Value $01 >> 1 = $00
+
+    // when:
+    Sint32 cycles = execute(&cpu);
+
+    // then:
+    EXPECT_EQ(cpu.Memory[0x0001], 0x00);
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);
+    EXPECT_TRUE(cpu.P & FLAG_ZERO);
+    EXPECT_EQ(cycles, 6);
+}
+
+TEST_F(ace64Test, LSRAbsoluteTest) {
+    // given: $2000 contains $40 (0100 0000)
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x4E; 
+    cpu.Memory[0x1001] = 0x00; // Lo
+    cpu.Memory[0x1002] = 0x20; // Hi
+    cpu.Memory[0x2000] = 0x40;
+
+    // when: $40 >> 1 = $20, Carry = 0
+    Sint32 cycles = execute(&cpu);
+
+    // then:
+    EXPECT_EQ(cpu.Memory[0x2000], 0x20);
+    EXPECT_FALSE(cpu.P & FLAG_CARRY);
+    EXPECT_EQ(cycles, 6);
+}
+
+TEST_F(ace64Test, LSRAbsoluteXTest) {
+    // given: $2000 + X $05 = $2005 (Same page)
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x5E; 
+    cpu.Memory[0x1001] = 0x00;
+    cpu.Memory[0x1002] = 0x20;
+    cpu.X = 0x05;
+    cpu.Memory[0x2005] = 0x01; // Value $01 >> 1 = $00
+
+    // when:
+    Sint32 cycles = execute(&cpu);
+
+    // then:
+    EXPECT_EQ(cpu.Memory[0x2005], 0x00);
+    EXPECT_TRUE(cpu.P & FLAG_ZERO);
+    EXPECT_EQ(cycles, 7); // Forced cycle check
 }

@@ -317,20 +317,20 @@ typedef struct
 
 typedef void (*OpcodeFunction)(CPU *cpu, Sint32 *cycles);
 
-extern void initialize_memory (CPU *cpu);
-extern void reset (CPU *cpu);
-extern Byte fetch_byte (CPU *cpu, Sint32 *cycles);
-extern void burn_cycle (CPU *cpu, Sint32 *cycles);
-extern Word fetch_word (CPU *cpu, Sint32 *cycles);
-extern Byte read_byte (CPU *cpu, Word address, Sint32 *cycles);
-extern Word read_word (CPU *cpu, Byte address, Sint32 *cycles);
-extern void write_byte (CPU *cpu, Word address, Byte value, Sint32 *cycles);
-extern void write_word (CPU *cpu, Word value, Byte address, Sint32 *cycles);
-extern void set_status_flag (Byte *flags, Byte value);
-extern void set_carry_flag (Byte *flags);
-extern void clear_carry_flag (Byte *flags);
-extern Word get_word_address (Byte loByte, Byte hiByte);
-extern Sint32 execute (CPU *cpu);
+void initialize_memory (CPU *cpu);
+void reset (CPU *cpu);
+Byte fetch_byte (CPU *cpu, Sint32 *cycles);
+void burn_cycle (CPU *cpu, Sint32 *cycles);
+Word fetch_word (CPU *cpu, Sint32 *cycles);
+Byte read_byte (CPU *cpu, Word address, Sint32 *cycles);
+Word read_word (CPU *cpu, Byte address, Sint32 *cycles);
+void write_byte (CPU *cpu, Word address, Byte value, Sint32 *cycles);
+void write_word (CPU *cpu, Word value, Byte address, Sint32 *cycles);
+void set_status_flag (Byte *flags, Byte value);
+void set_carry_flag (Byte *flags);
+void clear_carry_flag (Byte *flags);
+Word get_word_address (Byte loByte, Byte hiByte);
+Sint32 execute (CPU *cpu);
 
 #ifdef __cplusplus
 }
