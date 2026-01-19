@@ -123,15 +123,15 @@ get_addr_abs (CPU *cpu, Sint32 *cycles)
 }
 
 Byte
-perform_asl_steps (CPU *cpu, Byte value)
+perform_asl_logic (CPU *cpu, Byte value)
 {
   if (value & 0x80)
     {
-      set_carry_flag (&cpu->P);
+      set_flag (&cpu->P, FLAG_CARRY);
     }
   else
     {
-      clear_carry_flag (&cpu->P);
+      clear_flag (&cpu->P, FLAG_CARRY);
     }
 
   Byte result = value << 1;
@@ -142,15 +142,15 @@ perform_asl_steps (CPU *cpu, Byte value)
 }
 
 Byte
-perform_lsr_steps (CPU *cpu, Byte value)
+perform_lsr_logic (CPU *cpu, Byte value)
 {
   if (value & 0x01)
     {
-      set_carry_flag (&cpu->P);
+      set_flag (&cpu->P, FLAG_CARRY);
     }
   else
     {
-      clear_carry_flag (&cpu->P);
+      clear_flag (&cpu->P, FLAG_CARRY);
     }
 
   Byte result = value >> 1;
@@ -158,6 +158,131 @@ perform_lsr_steps (CPU *cpu, Byte value)
   set_status_flag (&cpu->P, result);
 
   return result;
+}
+
+Byte
+perform_rol_logic (CPU *cpu, Byte value)
+{
+
+  Byte old_carry = get_carry_flag (cpu);
+
+  if (value & 0x80)
+    {
+      set_flag (&cpu->P, FLAG_CARRY);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_CARRY);
+    }
+
+  Byte result = (value << 1) | old_carry;
+  set_status_flag (&cpu->P, result);
+
+  return result;
+}
+
+Byte
+perform_ror_logic (CPU *cpu, Byte value)
+{
+  Byte old_carry = get_carry_flag (cpu);
+
+  if (value & 0x01)
+    {
+      set_flag (&cpu->P, FLAG_CARRY);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_CARRY);
+    }
+
+  Byte result = (value >> 1) | (old_carry << 7);
+  set_status_flag (&cpu->P, result);
+
+  return result;
+}
+
+Byte
+perform_eor_logic (CPU *cpu, Byte value)
+{
+  Byte result = cpu->A ^ value;
+  set_status_flag (&cpu->P, result);
+
+  return result;
+}
+
+Byte
+perform_ora_logic (CPU *cpu, Byte value)
+{
+  Byte result = cpu->A | value;
+  set_status_flag (&cpu->P, result);
+
+  return result;
+}
+
+void
+perform_bit_logic (CPU *cpu, Byte value)
+{
+
+  if ((cpu->A & value) == 0)
+    {
+      set_flag (&cpu->P, FLAG_ZERO);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_ZERO);
+    }
+
+  if ((value & 0x80))
+    {
+      set_flag (&cpu->P, FLAG_NEGATIVE);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_NEGATIVE);
+    }
+
+  if ((value & 0x40))
+    {
+      set_flag (&cpu->P, FLAG_OVERFLOW);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_OVERFLOW);
+    }
+}
+
+void
+perform_cmp_logic (CPU *cpu, Byte registerValue, Byte readValue)
+{
+
+  Byte result = (Byte)(registerValue - readValue);
+
+  if (registerValue >= readValue)
+    {
+      set_flag (&cpu->P, FLAG_CARRY);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_CARRY);
+    }
+
+  if (result == 0)
+    {
+      set_flag (&cpu->P, FLAG_ZERO);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_ZERO);
+    }
+
+  if (result & 0x80)
+    {
+      set_flag (&cpu->P, FLAG_NEGATIVE);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_NEGATIVE);
+    }
 }
 
 // Opcode functions:
@@ -196,7 +321,7 @@ ins_and_abs (CPU *cpu, Sint32 *cycles)
   Byte value = read_byte (cpu, address, cycles);
   cpu->A = cpu->A & value;
   set_status_flag (&cpu->P, cpu->A);
-} // implemented
+}
 
 void
 ins_and_abx (CPU *cpu, Sint32 *cycles)
@@ -206,8 +331,7 @@ ins_and_abx (CPU *cpu, Sint32 *cycles)
 
   cpu->A = cpu->A & read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->A);
-
-} // implemented
+}
 
 void
 ins_and_aby (CPU *cpu, Sint32 *cycles)
@@ -217,7 +341,7 @@ ins_and_aby (CPU *cpu, Sint32 *cycles)
 
   cpu->A = cpu->A & read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->A);
-} // implemented
+}
 
 void
 ins_and_idx (CPU *cpu, Sint32 *cycles)
@@ -225,7 +349,7 @@ ins_and_idx (CPU *cpu, Sint32 *cycles)
   Word effectiveAddress = get_indexed_indirect_x (cpu, cycles);
   cpu->A = cpu->A & read_byte (cpu, effectiveAddress, cycles);
   set_status_flag (&cpu->P, cpu->A);
-} // implemented
+}
 
 void
 ins_and_idy (CPU *cpu, Sint32 *cycles)
@@ -234,7 +358,7 @@ ins_and_idy (CPU *cpu, Sint32 *cycles)
   Byte value = read_byte (cpu, address, cycles);
   cpu->A = cpu->A & value;
   set_status_flag (&cpu->P, cpu->A);
-} // implemented
+}
 
 // ASL: Arithmetic Shift Left: bits shifted 1 position, 0 shifted into bit 0,
 // bit 7 -> Carry Flags: N-----ZC
@@ -242,7 +366,7 @@ void
 ins_asl_acc (CPU *cpu, Sint32 *cycles)
 {
   burn_cycle (cpu, cycles);
-  cpu->A = perform_asl_steps (cpu, cpu->A);
+  cpu->A = perform_asl_logic (cpu, cpu->A);
 }
 void
 ins_asl_zp (CPU *cpu, Sint32 *cycles)
@@ -252,7 +376,7 @@ ins_asl_zp (CPU *cpu, Sint32 *cycles)
 
   write_byte (cpu, address, value, cycles);
 
-  value = perform_asl_steps (cpu, value);
+  value = perform_asl_logic (cpu, value);
   write_byte (cpu, address, value, cycles);
 }
 
@@ -264,7 +388,7 @@ ins_asl_zpx (CPU *cpu, Sint32 *cycles)
 
   write_byte (cpu, address, value, cycles);
 
-  value = perform_asl_steps (cpu, value);
+  value = perform_asl_logic (cpu, value);
   write_byte (cpu, address, value, cycles);
 }
 
@@ -275,20 +399,19 @@ ins_asl_abs (CPU *cpu, Sint32 *cycles)
   Byte value = read_byte (cpu, address, cycles);
 
   write_byte (cpu, address, value, cycles);
-  value = perform_asl_steps (cpu, value);
+  value = perform_asl_logic (cpu, value);
   write_byte (cpu, address, value, cycles);
 }
 
 void
 ins_asl_abx (CPU *cpu, Sint32 *cycles)
 {
-  Word address = get_addr_abx(cpu, cycles, true);
+  Word address = get_addr_abx (cpu, cycles, true);
   Byte value = read_byte (cpu, address, cycles);
 
   write_byte (cpu, address, value, cycles);
-  value = perform_asl_steps(cpu, value);
+  value = perform_asl_logic (cpu, value);
   write_byte (cpu, address, value, cycles);
-
 }
 
 // EOR: Bitwise exclusive OR with ACC. Add 1 cycle if page boundary is crossed.
@@ -296,48 +419,64 @@ ins_asl_abx (CPU *cpu, Sint32 *cycles)
 void
 ins_eor_im (CPU *cpu, Sint32 *cycles)
 {
-  Byte value = fetch_byte(cpu, cycles);
-  cpu->A = cpu->A ^ value;
-  set_status_flag(&cpu->P, cpu->A);
+  Byte value = fetch_byte (cpu, cycles);
+  cpu->A = perform_eor_logic (cpu, value);
 }
 
 void
 ins_eor_zp (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = fetch_byte (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = perform_eor_logic (cpu, value);
 }
+
 void
 ins_eor_zpx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_zpx (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = perform_eor_logic (cpu, value);
 }
+
 void
 ins_eor_abs (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abs (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = perform_eor_logic (cpu, value);
 }
+
 void
 ins_eor_abx (CPU *cpu, Sint32 *cycles)
 {
   Word address = get_addr_abx (cpu, cycles, false);
-
-  cpu->A = cpu->A ^ read_byte (cpu, address, cycles);
-  set_status_flag (&cpu->P, cpu->A);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = perform_eor_logic (cpu, value);
 }
+
 void
 ins_eor_aby (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_aby (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = perform_eor_logic (cpu, value);
 }
+
 void
 ins_eor_idx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_indexed_indirect_x (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = perform_eor_logic (cpu, value);
 }
+
 void
 ins_eor_idy (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_indirect_indexed_y (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = perform_eor_logic (cpu, value);
 }
 
 // LSR: Logical Shift Right: bits shifted 1 position.  0 shifted to bit 7, bit
@@ -345,8 +484,8 @@ ins_eor_idy (CPU *cpu, Sint32 *cycles)
 void
 ins_lsr_acc (CPU *cpu, Sint32 *cycles)
 {
-  burn_cycle(cpu, cycles);
-  cpu->A = perform_lsr_steps(cpu, cpu->A);
+  burn_cycle (cpu, cycles);
+  cpu->A = perform_lsr_logic (cpu, cpu->A);
 }
 void
 ins_lsr_zp (CPU *cpu, Sint32 *cycles)
@@ -356,7 +495,7 @@ ins_lsr_zp (CPU *cpu, Sint32 *cycles)
 
   write_byte (cpu, address, value, cycles);
 
-  value = perform_lsr_steps (cpu, value);
+  value = perform_lsr_logic (cpu, value);
   write_byte (cpu, address, value, cycles);
 }
 void
@@ -367,7 +506,7 @@ ins_lsr_zpx (CPU *cpu, Sint32 *cycles)
 
   write_byte (cpu, address, value, cycles);
 
-  value = perform_lsr_steps (cpu, value);
+  value = perform_lsr_logic (cpu, value);
   write_byte (cpu, address, value, cycles);
 }
 void
@@ -377,17 +516,17 @@ ins_lsr_abs (CPU *cpu, Sint32 *cycles)
   Byte value = read_byte (cpu, address, cycles);
 
   write_byte (cpu, address, value, cycles);
-  value = perform_lsr_steps (cpu, value);
+  value = perform_lsr_logic (cpu, value);
   write_byte (cpu, address, value, cycles);
 }
 void
 ins_lsr_abx (CPU *cpu, Sint32 *cycles)
 {
-  Word address = get_addr_abx(cpu, cycles, true);
+  Word address = get_addr_abx (cpu, cycles, true);
   Byte value = read_byte (cpu, address, cycles);
 
   write_byte (cpu, address, value, cycles);
-  value = perform_lsr_steps(cpu, value);
+  value = perform_lsr_logic (cpu, value);
   write_byte (cpu, address, value, cycles);
 }
 
@@ -396,45 +535,63 @@ ins_lsr_abx (CPU *cpu, Sint32 *cycles)
 void
 ins_ora_im (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Byte value = fetch_byte (cpu, cycles);
+  cpu->A = perform_ora_logic (cpu, value);
 }
+
 void
 ins_ora_zp (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = fetch_byte (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = perform_ora_logic (cpu, value);
 }
 void
 ins_ora_zpx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_zpx (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = perform_ora_logic (cpu, value);
 }
+
 void
 ins_ora_abs (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abs (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = perform_ora_logic (cpu, value);
 }
+
 void
 ins_ora_abx (CPU *cpu, Sint32 *cycles)
 {
   Word address = get_addr_abx (cpu, cycles, false);
-
-  cpu->A = cpu->A | read_byte (cpu, address, cycles);
-  set_status_flag (&cpu->P, cpu->A);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = perform_ora_logic (cpu, value);
 }
+
 void
 ins_ora_aby (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_aby (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = perform_ora_logic (cpu, value);
 }
+
 void
 ins_ora_idx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_indexed_indirect_x (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = perform_ora_logic (cpu, value);
 }
+
 void
 ins_ora_idy (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_indirect_indexed_y (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = perform_ora_logic (cpu, value);
 }
 
 // ROL: Shift all bits left 1.  Carry shifted to 0, original 7 shifted to Carry
@@ -442,27 +599,47 @@ ins_ora_idy (CPU *cpu, Sint32 *cycles)
 void
 ins_rol_acc (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle (cpu, cycles);
+  cpu->A = perform_rol_logic (cpu, cpu->A);
 }
 void
 ins_rol_zp (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = fetch_byte (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  write_byte (cpu, address, value, cycles);
+  value = perform_rol_logic (cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
+
 void
 ins_rol_zpx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_zpx (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  write_byte (cpu, address, value, cycles);
+  value = perform_rol_logic (cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
+
 void
 ins_rol_abs (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abs (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  write_byte (cpu, address, value, cycles);
+  value = perform_rol_logic (cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
+
 void
 ins_rol_abx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abx (cpu, cycles, true);
+  Byte value = read_byte (cpu, address, cycles);
+  write_byte (cpu, address, value, cycles);
+  value = perform_rol_logic (cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
 
 // ROR: Shift all bits right 1.  Carry to bit 7, original bit 0 to Carry
@@ -470,27 +647,44 @@ ins_rol_abx (CPU *cpu, Sint32 *cycles)
 void
 ins_ror_acc (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle (cpu, cycles);
+  cpu->A = perform_ror_logic (cpu, cpu->A);
 }
 void
 ins_ror_zp (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = fetch_byte (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  write_byte (cpu, address, value, cycles);
+  value = perform_ror_logic (cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
 void
 ins_ror_zpx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_zpx (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  write_byte (cpu, address, value, cycles);
+  value = perform_ror_logic (cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
 void
 ins_ror_abs (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abs (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  write_byte (cpu, address, value, cycles);
+  value = perform_ror_logic (cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
 void
 ins_ror_abx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abx (cpu, cycles, true);
+  Byte value = read_byte (cpu, address, cycles);
+  write_byte (cpu, address, value, cycles);
+  value = perform_ror_logic (cpu, value);
+  write_byte (cpu, address, value, cycles);
 }
 
 /* Branch Instructions */
@@ -551,42 +745,64 @@ ins_beq (CPU *cpu, Sint32 *cycles)
 void
 ins_cmp_im (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Byte value = fetch_byte (cpu, cycles);
+  perform_cmp_logic (cpu, cpu->A, value);
 }
+
 void
 ins_cmp_zp (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = fetch_byte (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  perform_cmp_logic (cpu, cpu->A, value);
 }
+
 void
 ins_cmp_zpx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_zpx (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  perform_cmp_logic (cpu, cpu->A, value);
 }
+
 void
 ins_cmp_abs (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abs (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  perform_cmp_logic (cpu, cpu->A, value);
 }
+
 void
 ins_cmp_abx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abx (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  perform_cmp_logic (cpu, cpu->A, value);
 }
+
 void
 ins_cmp_aby (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_aby (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  perform_cmp_logic (cpu, cpu->A, value);
 }
+
 void
 ins_cmp_idx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_indexed_indirect_x (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  perform_cmp_logic (cpu, cpu->A, value);
 }
+
 void
 ins_cmp_idy (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_indirect_indexed_y (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  perform_cmp_logic (cpu, cpu->A, value);
 }
 
 // BIT: Test Bits
@@ -596,12 +812,17 @@ ins_cmp_idy (CPU *cpu, Sint32 *cycles)
 void
 ins_bit_zp (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = fetch_byte (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  perform_bit_logic (cpu, value);
 }
+
 void
 ins_bit_abs (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abs (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  perform_bit_logic (cpu, value);
 }
 
 // CPX, CPY: Compare X, Y register.
@@ -610,32 +831,47 @@ ins_bit_abs (CPU *cpu, Sint32 *cycles)
 void
 ins_cpx_im (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Byte value = fetch_byte (cpu, cycles);
+  perform_cmp_logic (cpu, cpu->X, value);
 }
+
 void
 ins_cpx_zp (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = fetch_byte (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  perform_cmp_logic (cpu, cpu->X, value);
 }
+
 void
 ins_cpx_abs (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abs (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  perform_cmp_logic (cpu, cpu->X, value);
 }
+
 void
 ins_cpy_im (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Byte value = fetch_byte (cpu, cycles);
+  perform_cmp_logic (cpu, cpu->Y, value);
 }
+
 void
 ins_cpy_zp (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = fetch_byte (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  perform_cmp_logic (cpu, cpu->Y, value);
 }
+
 void
 ins_cpy_abs (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abs (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  perform_cmp_logic (cpu, cpu->Y, value);
 }
 
 /* Flag Instructions */
@@ -697,7 +933,7 @@ ins_jmp_abs (CPU *cpu, Sint32 *cycles)
   Word address = get_addr_abs (cpu, cycles);
   cpu->PC = address;
   cycles++;
-} // Implemented
+}
 
 void
 ins_jmp_ind (CPU *cpu, Sint32 *cycles)
@@ -717,7 +953,7 @@ ins_jsr (CPU *cpu, Sint32 *cycles)
 
   Byte hiByte = fetch_byte (cpu, cycles);
   cpu->PC = (hiByte << 8) | loByte;
-} // Implemented
+}
 
 void
 ins_rts (CPU *cpu, Sint32 *cycles)
@@ -829,7 +1065,7 @@ ins_lda_im (CPU *cpu, Sint32 *cycles)
   Byte value = fetch_byte (cpu, cycles);
   cpu->A = value;
   set_status_flag (&cpu->P, cpu->A);
-} // Implemented
+}
 
 void
 ins_lda_zp (CPU *cpu, Sint32 *cycles)
@@ -837,7 +1073,7 @@ ins_lda_zp (CPU *cpu, Sint32 *cycles)
   Word address = fetch_byte (cpu, cycles);
   cpu->A = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->A);
-} // Implemented
+}
 
 void
 ins_lda_zpx (CPU *cpu, Sint32 *cycles)
@@ -845,7 +1081,7 @@ ins_lda_zpx (CPU *cpu, Sint32 *cycles)
   Word address = get_addr_zpx (cpu, cycles);
   cpu->A = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->A);
-} // Implemented
+}
 
 void
 ins_lda_abs (CPU *cpu, Sint32 *cycles)
@@ -853,7 +1089,7 @@ ins_lda_abs (CPU *cpu, Sint32 *cycles)
   Word address = get_addr_abs (cpu, cycles);
   cpu->A = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->A);
-} // Implemented
+}
 
 void
 ins_lda_abx (CPU *cpu, Sint32 *cycles)
@@ -861,7 +1097,7 @@ ins_lda_abx (CPU *cpu, Sint32 *cycles)
   Word address = get_addr_abx (cpu, cycles, false);
   cpu->A = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->A);
-} // Implemented
+}
 
 void
 ins_lda_aby (CPU *cpu, Sint32 *cycles)
@@ -869,7 +1105,7 @@ ins_lda_aby (CPU *cpu, Sint32 *cycles)
   Word address = get_addr_aby (cpu, cycles, false);
   cpu->A = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->A);
-} // Implemented
+}
 
 void
 ins_lda_idx (CPU *cpu, Sint32 *cycles)
@@ -877,14 +1113,14 @@ ins_lda_idx (CPU *cpu, Sint32 *cycles)
   Word address = get_indexed_indirect_x (cpu, cycles);
   cpu->A = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->A);
-} // Implemented
+}
 void
 ins_lda_idy (CPU *cpu, Sint32 *cycles)
 {
   Word address = get_indirect_indexed_y (cpu, cycles, false);
   cpu->A = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->A);
-} // Implemented
+}
 
 // LDX, LDY: Load X Register, Load Y Register
 // Flags: N-----Z-
@@ -894,7 +1130,7 @@ ins_ldx_im (CPU *cpu, Sint32 *cycles)
   Byte value = fetch_byte (cpu, cycles);
   cpu->X = value;
   set_status_flag (&cpu->P, cpu->X);
-} // Implemented
+}
 
 void
 ins_ldx_zp (CPU *cpu, Sint32 *cycles)
@@ -902,7 +1138,7 @@ ins_ldx_zp (CPU *cpu, Sint32 *cycles)
   Word address = fetch_byte (cpu, cycles);
   cpu->X = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->X);
-} // Implemented
+}
 
 void
 ins_ldx_zpy (CPU *cpu, Sint32 *cycles)
@@ -910,7 +1146,7 @@ ins_ldx_zpy (CPU *cpu, Sint32 *cycles)
   Word address = get_addr_zpy (cpu, cycles);
   cpu->X = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->X);
-} // Implemented
+}
 
 void
 ins_ldx_abs (CPU *cpu, Sint32 *cycles)
@@ -918,7 +1154,7 @@ ins_ldx_abs (CPU *cpu, Sint32 *cycles)
   Word address = get_addr_abs (cpu, cycles);
   cpu->X = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->X);
-} // Implemented
+}
 
 void
 ins_ldx_aby (CPU *cpu, Sint32 *cycles)
@@ -926,7 +1162,7 @@ ins_ldx_aby (CPU *cpu, Sint32 *cycles)
   Word address = get_addr_aby (cpu, cycles, false);
   cpu->X = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->X);
-} // Implemented
+}
 
 void
 ins_ldy_im (CPU *cpu, Sint32 *cycles)
@@ -934,7 +1170,7 @@ ins_ldy_im (CPU *cpu, Sint32 *cycles)
   Byte Value = fetch_byte (cpu, cycles);
   cpu->Y = Value;
   set_status_flag (&cpu->P, cpu->Y);
-} // Implemented
+}
 
 void
 ins_ldy_zp (CPU *cpu, Sint32 *cycles)
@@ -942,14 +1178,14 @@ ins_ldy_zp (CPU *cpu, Sint32 *cycles)
   Word address = fetch_byte (cpu, cycles);
   cpu->Y = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->Y);
-} // Implemented
+}
 
 void
 ins_ldy_zpx (CPU *cpu, Sint32 *cycles)
 {
   Word address = get_addr_zpx (cpu, cycles);
   cpu->Y = read_byte (cpu, address, cycles);
-} // Implemented
+}
 
 void
 ins_ldy_abs (CPU *cpu, Sint32 *cycles)
@@ -957,7 +1193,7 @@ ins_ldy_abs (CPU *cpu, Sint32 *cycles)
   Word address = get_addr_abs (cpu, cycles);
   cpu->Y = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->Y);
-} // Implemented
+}
 
 void
 ins_ldy_abx (CPU *cpu, Sint32 *cycles)
@@ -965,7 +1201,7 @@ ins_ldy_abx (CPU *cpu, Sint32 *cycles)
   Word address = get_addr_abx (cpu, cycles, false);
   cpu->Y = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->Y);
-} // Implemented
+}
 
 // STA: Store Accumulator
 // Flags: --------
@@ -974,49 +1210,49 @@ ins_sta_zp (CPU *cpu, Sint32 *cycles)
 {
   Word address = fetch_byte (cpu, cycles);
   write_byte (cpu, address, cpu->A, cycles);
-} // Implemented
+}
 
 void
 ins_sta_zpx (CPU *cpu, Sint32 *cycles)
 {
   Word address = get_addr_zpx (cpu, cycles);
   write_byte (cpu, address, cpu->A, cycles);
-} // Implemented
+}
 
 void
 ins_sta_abs (CPU *cpu, Sint32 *cycles)
 {
   Word address = get_addr_abs (cpu, cycles);
   write_byte (cpu, address, cpu->A, cycles);
-} // Implemented
+}
 
 void
 ins_sta_abx (CPU *cpu, Sint32 *cycles)
 {
   Word address = get_addr_abx (cpu, cycles, true);
   write_byte (cpu, address, cpu->A, cycles);
-} // Implemented
+}
 
 void
 ins_sta_aby (CPU *cpu, Sint32 *cycles)
 {
   Word address = get_addr_aby (cpu, cycles, true);
   write_byte (cpu, address, cpu->A, cycles);
-} // Implemented
+}
 
 void
 ins_sta_idx (CPU *cpu, Sint32 *cycles)
 {
   Word address = get_indexed_indirect_x (cpu, cycles);
   write_byte (cpu, address, cpu->A, cycles);
-} // Implemented
+}
 
 void
 ins_sta_idy (CPU *cpu, Sint32 *cycles)
 {
   Word address = get_indirect_indexed_y (cpu, cycles, true);
   write_byte (cpu, address, cpu->A, cycles);
-} // Implemented
+}
 
 // STX, STY: Store X Reg, Store Y Reg
 // Flags: --------
@@ -1026,42 +1262,42 @@ ins_stx_zp (CPU *cpu, Sint32 *cycles)
 {
   Word address = fetch_byte (cpu, cycles);
   write_byte (cpu, address, cpu->X, cycles);
-} // Implemented
+}
 
 void
 ins_stx_zpy (CPU *cpu, Sint32 *cycles)
 {
   Word address = get_addr_zpy (cpu, cycles);
   write_byte (cpu, address, cpu->X, cycles);
-} // Implemented
+}
 
 void
 ins_stx_abs (CPU *cpu, Sint32 *cycles)
 {
   Word address = get_addr_abs (cpu, cycles);
   write_byte (cpu, address, cpu->X, cycles);
-} // Implemented
+}
 
 void
 ins_sty_zp (CPU *cpu, Sint32 *cycles)
 {
   Word address = fetch_byte (cpu, cycles);
   write_byte (cpu, address, cpu->Y, cycles);
-} // Implemented
+}
 
 void
 ins_sty_zpx (CPU *cpu, Sint32 *cycles)
 {
   Word address = get_addr_zpx (cpu, cycles);
   write_byte (cpu, address, cpu->Y, cycles);
-} // Implemented
+}
 
 void
 ins_sty_abs (CPU *cpu, Sint32 *cycles)
 {
   Word address = get_addr_abs (cpu, cycles);
   write_byte (cpu, address, cpu->Y, cycles);
-} // Implemented
+}
 
 // DEC: Decrement Memory
 // Flags: N-----Z-
@@ -1074,7 +1310,7 @@ ins_dec_zp (CPU *cpu, Sint32 *cycles)
   write_byte (cpu, address, value, cycles);   // Cycle 4
   write_byte (cpu, address, --value, cycles); // Cycle 5
   set_status_flag (&cpu->P, value);
-} // Implemented
+}
 void
 ins_dec_zpx (CPU *cpu, Sint32 *cycles)
 {
@@ -1083,7 +1319,7 @@ ins_dec_zpx (CPU *cpu, Sint32 *cycles)
   write_byte (cpu, address, value, cycles);
   write_byte (cpu, address, --value, cycles);
   set_status_flag (&cpu->P, value);
-} // Implemented
+}
 void
 ins_dec_abs (CPU *cpu, Sint32 *cycles)
 {
@@ -1092,7 +1328,7 @@ ins_dec_abs (CPU *cpu, Sint32 *cycles)
   write_byte (cpu, address, value, cycles);
   write_byte (cpu, address, --value, cycles);
   set_status_flag (&cpu->P, value);
-} // Implemented
+}
 void
 ins_dec_abx (CPU *cpu, Sint32 *cycles)
 {
@@ -1101,7 +1337,7 @@ ins_dec_abx (CPU *cpu, Sint32 *cycles)
   write_byte (cpu, address, value, cycles);
   write_byte (cpu, address, --value, cycles);
   set_status_flag (&cpu->P, value);
-} // Implemented
+}
 
 // INC: Increment Memory
 // Flags: N-----Z-
@@ -1114,7 +1350,7 @@ ins_inc_zp (CPU *cpu, Sint32 *cycles)
   write_byte (cpu, address, value, cycles);   // Cycle 4
   write_byte (cpu, address, ++value, cycles); // Cycle 5
   set_status_flag (&cpu->P, value);
-} // Implemented
+}
 void
 ins_inc_zpx (CPU *cpu, Sint32 *cycles)
 {
@@ -1123,7 +1359,7 @@ ins_inc_zpx (CPU *cpu, Sint32 *cycles)
   write_byte (cpu, address, value, cycles);
   write_byte (cpu, address, ++value, cycles);
   set_status_flag (&cpu->P, value);
-} // Implemented
+}
 void
 ins_inc_abs (CPU *cpu, Sint32 *cycles)
 {
@@ -1132,7 +1368,7 @@ ins_inc_abs (CPU *cpu, Sint32 *cycles)
   write_byte (cpu, address, value, cycles);
   write_byte (cpu, address, ++value, cycles);
   set_status_flag (&cpu->P, value);
-} // Implemented
+}
 
 void
 ins_inc_abx (CPU *cpu, Sint32 *cycles)
@@ -1142,8 +1378,7 @@ ins_inc_abx (CPU *cpu, Sint32 *cycles)
   write_byte (cpu, address, value, cycles);
   write_byte (cpu, address, ++value, cycles);
   set_status_flag (&cpu->P, value);
-
-} // Implemented
+}
 
 /* Register Instructions */
 
@@ -1155,28 +1390,28 @@ ins_tax (CPU *cpu, Sint32 *cycles)
   burn_cycle (cpu, cycles);
   cpu->X = cpu->A;
   set_status_flag (&cpu->P, cpu->X);
-} // Implemented
+}
 void
 ins_tay (CPU *cpu, Sint32 *cycles)
 {
   burn_cycle (cpu, cycles);
   cpu->Y = cpu->A;
   set_status_flag (&cpu->P, cpu->Y);
-} // Implemented
+}
 void
 ins_txa (CPU *cpu, Sint32 *cycles)
 {
   burn_cycle (cpu, cycles);
   cpu->A = cpu->X;
   set_status_flag (&cpu->P, cpu->A);
-} // Implemented
+}
 void
 ins_tya (CPU *cpu, Sint32 *cycles)
 {
   burn_cycle (cpu, cycles);
   cpu->A = cpu->Y;
   set_status_flag (&cpu->P, cpu->A);
-} // Implemented
+}
 void
 ins_dex (CPU *cpu, Sint32 *cycles)
 {
@@ -1208,21 +1443,21 @@ ins_pha (CPU *cpu, Sint32 *cycles)
 {
   burn_cycle (cpu, cycles);
   stack_push (cpu, cpu->A, cycles);
-} // Implemented
+}
 
 void
 ins_php (CPU *cpu, Sint32 *cycles)
 {
   burn_cycle (cpu, cycles);
   stack_push (cpu, cpu->P | 0x30, cycles);
-} // Implemented
+}
 
 void
 ins_txs (CPU *cpu, Sint32 *cycles)
 {
   burn_cycle (cpu, cycles);
   cpu->SP = cpu->X;
-} // Implemented
+}
 
 // Flags: N-----Z-
 void
@@ -1232,14 +1467,14 @@ ins_pla (CPU *cpu, Sint32 *cycles)
   burn_cycle (cpu, cycles);
   cpu->A = stack_pop (cpu, cycles);
   set_status_flag (&cpu->P, cpu->A);
-} // Implemented
+}
 void
 ins_tsx (CPU *cpu, Sint32 *cycles)
 {
   burn_cycle (cpu, cycles);
   cpu->X = cpu->SP;
   set_status_flag (&cpu->P, cpu->X);
-} // Implemented
+}
 
 // Flags: NV-BDIZC
 void
@@ -1251,7 +1486,7 @@ ins_plp (CPU *cpu, Sint32 *cycles)
   Byte status = stack_pop (cpu, cycles);
 
   cpu->P = (status & 0xEF) | 0x20;
-} // Implemented
+}
 
 /* Other Instructions */
 // Sets the B flag, then generates a forced interrupt.  Interrupt flag is

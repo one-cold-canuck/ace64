@@ -327,8 +327,9 @@ Word read_word (CPU *cpu, Byte address, Sint32 *cycles);
 void write_byte (CPU *cpu, Word address, Byte value, Sint32 *cycles);
 void write_word (CPU *cpu, Word value, Byte address, Sint32 *cycles);
 void set_status_flag (Byte *flags, Byte value);
-void set_carry_flag (Byte *flags);
-void clear_carry_flag (Byte *flags);
+void set_flag (Byte *flags, Byte flagToSet);
+void clear_flag (Byte *flags, Byte flagToClear);
+Byte get_carry_flag(CPU *cpu);
 Word get_word_address (Byte loByte, Byte hiByte);
 Sint32 execute (CPU *cpu);
 

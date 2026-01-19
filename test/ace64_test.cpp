@@ -1401,23 +1401,31 @@ TEST_F (ace64Test, PHATestStackPush)
   EXPECT_EQ (cpu.SP, 0xFE);
 }
 
-TEST_F (ace64Test, PHPTestStackPush)
+TEST_F(ace64Test, PHPTestStackPush)
 {
-
   // given:
-  cpu.Memory[0xFFFC] = INS_PHP;
-  cpu.P |= FLAG_OVERFLOW | FLAG_CARRY;
-
-  CPU cpuCopy = cpu;
-  constexpr Sint32 EXPECTED_CYCLES = 3;
+  // We set specific flags (Negative, Overflow, and Carry)
+  // Binary: 1100 0001 ($C1)
+  cpu.PC = 0xFFFC;
+  cpu.Memory[0xFFFC] = 0x08; // PHP Opcode
+  cpu.P = FLAG_NEGATIVE | FLAG_OVERFLOW | FLAG_CARRY;
+  cpu.SP = 0xFF; // Start of stack
 
   // when:
-  Sint32 CyclesUsed = execute (&cpu);
+  execute(&cpu);
 
   // then:
-  Byte expectedValue = FLAG_OVERFLOW | FLAG_CARRY | 0x30;
-  EXPECT_EQ (cpu.Memory[0x01FF], expectedValue);
-  EXPECT_EQ (cpu.SP, 0xFE);
+  // 1. Stack Pointer should decrement
+  EXPECT_EQ(cpu.SP, 0xFE);
+
+  /* 2. Verify the Pushed Value at $01FF
+     The pushed value MUST be: (Original P) OR 0x30
+     - Bit 5 is always 1 on the stack ($20)
+     - Bit 4 is the Break flag, set to 1 for PHP ($10)
+     Original ($C1) | $30 = $F1 (1111 0001)
+  */
+  Byte expectedValue = FLAG_NEGATIVE | FLAG_OVERFLOW | FLAG_CARRY | 0x30;
+  EXPECT_EQ(cpu.Memory[0x01FF], expectedValue);
 }
 
 TEST_F (ace64Test, PLATestAccumulatorLoad)
@@ -1681,4 +1689,597 @@ TEST_F(ace64Test, LSRAbsoluteXTest) {
     EXPECT_EQ(cpu.Memory[0x2005], 0x00);
     EXPECT_TRUE(cpu.P & FLAG_ZERO);
     EXPECT_EQ(cycles, 7); // Forced cycle check
+}
+
+TEST_F(ace64Test, EORImmediate) {
+    cpu.A = 0xFF;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x49; // EOR #$AA
+    cpu.Memory[0x1001] = 0xAA;
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x55);
+    EXPECT_FALSE(cpu.P & FLAG_ZERO);
+    EXPECT_FALSE(cpu.P & FLAG_NEGATIVE);
+    EXPECT_EQ(cyclesUsed, 2);
+}
+
+TEST_F(ace64Test, EORZeroPage) {
+    cpu.A = 0xFF;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x45; // EOR $80
+    cpu.Memory[0x1001] = 0x80;
+    cpu.Memory[0x0080] = 0xAA;
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x55);
+    EXPECT_EQ(cyclesUsed, 3);
+}
+
+TEST_F(ace64Test, EORZeroPageX) {
+    cpu.A = 0xAA;
+    cpu.X = 0x05;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x55; // EOR $10, X
+    cpu.Memory[0x1001] = 0x10;
+    cpu.Memory[0x0015] = 0xAA; // Address: $10 + $05
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x00);
+    EXPECT_TRUE(cpu.P & FLAG_ZERO); // Result is 0
+    EXPECT_EQ(cyclesUsed, 4);
+}
+
+TEST_F(ace64Test, EORAbsolute) {
+    cpu.A = 0x00;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x4D; 
+    cpu.Memory[0x1001] = 0x00; // Lo
+    cpu.Memory[0x1002] = 0x20; // Hi
+    cpu.Memory[0x2000] = 0x80;
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x80);
+    EXPECT_TRUE(cpu.P & FLAG_NEGATIVE); // Bit 7 is 1
+    EXPECT_EQ(cyclesUsed, 4);
+}
+
+TEST_F(ace64Test, EORAbsoluteXPagePenalty) {
+    cpu.A = 0xFF;
+    cpu.X = 0xFF; // Forces page cross
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x5D; 
+    cpu.Memory[0x1001] = 0x01; // Base $2001
+    cpu.Memory[0x1002] = 0x20; 
+    cpu.Memory[0x2100] = 0xAA; // Effective: $2001 + $FF = $2100
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x55);
+    EXPECT_EQ(cyclesUsed, 5); // 4 + 1 for page cross
+}
+
+TEST_F(ace64Test, EORIndirectX) {
+    cpu.A = 0xFF;
+    cpu.X = 0x01;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x41; 
+    cpu.Memory[0x1001] = 0x10; // Pointer address base
+    // Pointer at $11 ($10+1): $2000
+    cpu.Memory[0x0011] = 0x00; 
+    cpu.Memory[0x0012] = 0x20;
+    cpu.Memory[0x2000] = 0xAA;
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x55);
+    EXPECT_EQ(cyclesUsed, 6);
+}
+
+TEST_F(ace64Test, EORIndirectY) {
+    cpu.A = 0xFF;
+    cpu.Y = 0x01;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x51; 
+    cpu.Memory[0x1001] = 0x10; // ZP Pointer
+    cpu.Memory[0x0010] = 0x00; // Pointer base $2000
+    cpu.Memory[0x0011] = 0x20;
+    cpu.Memory[0x2001] = 0xAA; // Effective: $2000 + $01
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x55);
+    EXPECT_EQ(cyclesUsed, 5);
+}
+
+TEST_F(ace64Test, ORAImmediate) {
+    cpu.A = 0xF0;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x09; // ORA #$0F
+    cpu.Memory[0x1001] = 0x0F;
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0xFF);
+    EXPECT_TRUE(cpu.P & FLAG_NEGATIVE);
+    EXPECT_FALSE(cpu.P & FLAG_ZERO);
+    EXPECT_EQ(cyclesUsed, 2);
+}
+
+TEST_F(ace64Test, ORAZeroPage) {
+    cpu.A = 0xAA;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x05; // ORA $80
+    cpu.Memory[0x1001] = 0x80;
+    cpu.Memory[0x0080] = 0x55;
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0xFF);
+    EXPECT_EQ(cyclesUsed, 3);
+}
+
+TEST_F(ace64Test, ORAZeroPageX) {
+    cpu.A = 0x00;
+    cpu.X = 0x05;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x15; // ORA $10, X
+    cpu.Memory[0x1001] = 0x10;
+    cpu.Memory[0x0015] = 0x00; // $00 | $00
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x00);
+    EXPECT_TRUE(cpu.P & FLAG_ZERO);
+    EXPECT_EQ(cyclesUsed, 4);
+}
+
+TEST_F(ace64Test, ORAAbsolute) {
+    cpu.A = 0x01;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x0D; 
+    cpu.Memory[0x1001] = 0x00;
+    cpu.Memory[0x1002] = 0x20; 
+    cpu.Memory[0x2000] = 0x02;
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x03);
+    EXPECT_EQ(cyclesUsed, 4);
+}
+
+TEST_F(ace64Test, ORAAbsoluteYPagePenalty) {
+    cpu.A = 0x00;
+    cpu.Y = 0xFF; // Forces page cross
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x19; // ORA $2001, Y
+    cpu.Memory[0x1001] = 0x01;
+    cpu.Memory[0x1002] = 0x20; 
+    cpu.Memory[0x2100] = 0x80;
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x80);
+    EXPECT_TRUE(cpu.P & FLAG_NEGATIVE);
+    EXPECT_EQ(cyclesUsed, 5); // 4 + 1 penalty
+}
+
+
+TEST_F(ace64Test, ORAAbsoluteXPagePenalty) {
+    cpu.A = 0x00;
+    cpu.X = 0xFF; // Forces page cross
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x1D; // ORA $2001, Y
+    cpu.Memory[0x1001] = 0x01;
+    cpu.Memory[0x1002] = 0x20; 
+    cpu.Memory[0x2100] = 0x80;
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x80);
+    EXPECT_TRUE(cpu.P & FLAG_NEGATIVE);
+    EXPECT_EQ(cyclesUsed, 5); // 4 + 1 penalty
+}
+
+TEST_F(ace64Test, ORAIndirectX) {
+    cpu.A = 0x01;
+    cpu.X = 0x01;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x01; 
+    cpu.Memory[0x1001] = 0x10;
+    cpu.Memory[0x0011] = 0x00; // Pointer Lo
+    cpu.Memory[0x0012] = 0x20; // Pointer Hi
+    cpu.Memory[0x2000] = 0x80;
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x81);
+    EXPECT_EQ(cyclesUsed, 6);
+}
+
+TEST_F(ace64Test, ORAIndirectY) {
+    cpu.A = 0x10;
+    cpu.Y = 0x01;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x11; 
+    cpu.Memory[0x1001] = 0x20; // ZP Pointer
+    cpu.Memory[0x0020] = 0x00; // $3000 base
+    cpu.Memory[0x0021] = 0x30;
+    cpu.Memory[0x3001] = 0x20;
+
+    Sint32 cyclesUsed = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x30);
+    EXPECT_EQ(cyclesUsed, 5);
+}
+
+TEST_F(ace64Test, ROLAccumulatorTest) {
+    // given: A = $80 (1000 0000), Carry = 1
+    // ROL: Bit 7 ($80) goes to Carry. Old Carry (1) goes to Bit 0.
+    // Result: 0000 0001 ($01), Carry = 1
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x2A; // ROL A
+    cpu.A = 0x80;
+    cpu.P = FLAG_CARRY; // Set Carry to 1
+
+    Sint32 cycles = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x01);
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);    // New Carry from bit 7
+    EXPECT_FALSE(cpu.P & FLAG_ZERO);
+    EXPECT_FALSE(cpu.P & FLAG_NEGATIVE);
+    EXPECT_EQ(cycles, 2);
+}
+
+TEST_F(ace64Test, RORAccumulatorTest) {
+    // given: A = $01 (0000 0001), Carry = 1
+    // ROR: Bit 0 ($01) goes to Carry. Old Carry (1) goes to Bit 7.
+    // Result: 1000 0000 ($80), Carry = 1
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x6A; // ROR A
+    cpu.A = 0x01;
+    cpu.P = FLAG_CARRY;
+
+    Sint32 cycles = execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x80);
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);    // New Carry from bit 0
+    EXPECT_TRUE(cpu.P & FLAG_NEGATIVE); // Bit 7 is now 1
+    EXPECT_EQ(cycles, 2);
+}
+
+
+TEST_F(ace64Test, ROLZeroPageTest) {
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x26; 
+    cpu.Memory[0x1001] = 0x80;
+    cpu.Memory[0x0080] = 0x40; // 0100 0000
+    cpu.P = FLAG_CARRY;        // Carry is 1
+
+    execute(&cpu);
+
+    // 0x40 shifted left is 0x80. Bit 0 becomes the OLD carry (1).
+    EXPECT_EQ(cpu.Memory[0x0080], 0x81); // Should be 129
+    EXPECT_FALSE(cpu.P & FLAG_CARRY);    // New carry is 0 (old bit 7)
+    EXPECT_TRUE(cpu.P & FLAG_NEGATIVE);  // Bit 7 is set
+}
+
+TEST_F(ace64Test, RORAbsoluteXTest) {
+    // given: $2000 + X($01) = $2001, contains $01, Carry = 0
+    // Result: $00, Carry = 1
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x7E; 
+    cpu.Memory[0x1001] = 0x00; 
+    cpu.Memory[0x1002] = 0x20;
+    cpu.X = 0x01;
+    cpu.Memory[0x2001] = 0x01;
+    cpu.P = 0x00; // Carry = 0
+
+    Sint32 cycles = execute(&cpu);
+
+    EXPECT_EQ(cpu.Memory[0x2001], 0x00);
+    EXPECT_TRUE(cpu.P & FLAG_CARRY); // Bit 0 moved to Carry
+    EXPECT_TRUE(cpu.P & FLAG_ZERO);  // Result is 0
+    EXPECT_EQ(cycles, 7);            // Mandatory 7 cycles
+}
+
+TEST_F(ace64Test, ROLMultiValueTest) {
+    struct TestData {
+        Byte initialValue;
+        Byte initialCarry;
+        Byte expectedValue;
+        bool expectedCarry;
+        bool expectedNegative;
+        bool expectedZero;
+    };
+
+    std::vector<TestData> cases = {
+        // 1. No bits moving to Carry, No Carry moving in
+        {0x01, 0, 0x02, false, false, false}, 
+        
+        // 2. Bit 7 moves to Carry, No Carry moving in
+        {0x80, 0, 0x00, true,  false, true},  
+        
+        // 3. No bits moving to Carry, Carry moves into Bit 0
+        {0x40, 1, 0x81, false, true,  false}, 
+        
+        // 4. Bit 7 moves to Carry, Carry moves into Bit 0
+        {0x81, 1, 0x03, true,  false, false}  
+    };
+
+    for (const auto& t : cases) {
+        // Reset CPU for each sub-test
+        cpu.PC = 0x1000;
+        cpu.Memory[0x1000] = 0x26; 
+        cpu.Memory[0x1001] = 0x80;
+        cpu.Memory[0x0080] = t.initialValue;
+        cpu.P = t.initialCarry ? FLAG_CARRY : 0;
+
+        execute(&cpu);
+
+        EXPECT_EQ(cpu.Memory[0x0080], t.expectedValue) << "Failed on value: " << (int)t.initialValue;
+        EXPECT_EQ((bool)(cpu.P & FLAG_CARRY), t.expectedCarry);
+        EXPECT_EQ((bool)(cpu.P & FLAG_NEGATIVE), t.expectedNegative);
+        EXPECT_EQ((bool)(cpu.P & FLAG_ZERO), t.expectedZero);
+    }
+}
+
+TEST_F(ace64Test, RORMultiValueTest) {
+    struct TestData {
+        Byte initialValue;
+        Byte initialCarry;
+        Byte expectedValue;
+        bool expectedCarry;
+        bool expectedNegative;
+        bool expectedZero;
+    };
+
+    std::vector<TestData> cases = {
+        // 1. Simple shift right (No carry in, no carry out)
+        // $02 (0000 0010) >> 1 = $01 (0000 0001)
+        {0x02, 0, 0x01, false, false, false}, 
+        
+        // 2. Bit 0 moves out to Carry (No carry in)
+        // $01 (0000 0001) >> 1 = $00, Carry = 1
+        {0x01, 0, 0x00, true,  false, true},  
+        
+        // 3. Carry moves into Bit 7 (No carry out)
+        // $02 >> 1 = $01 | bit 7 = $81 (1000 0001)
+        {0x02, 1, 0x81, false, true,  false}, 
+        
+        // 4. Circular: Bit 0 to Carry, Carry to Bit 7
+        // $81 (1000 0001) >> 1 = $40 | bit 7 = $C0 (1100 0000)
+        {0x81, 1, 0xC0, true,  true,  false}  
+    };
+
+    for (const auto& t : cases) {
+        // Reset CPU State
+        cpu.PC = 0x1000;
+        cpu.Memory[0x1000] = 0x66; // ROR Zero Page opcode
+        cpu.Memory[0x1001] = 0x80; // ZP Address $80
+        cpu.Memory[0x0080] = t.initialValue;
+        cpu.P = t.initialCarry ? FLAG_CARRY : 0;
+
+        execute(&cpu);
+
+        EXPECT_EQ(cpu.Memory[0x0080], t.expectedValue) << "Failed on value: " << (int)t.initialValue;
+        EXPECT_EQ((bool)(cpu.P & FLAG_CARRY), t.expectedCarry) << "Carry mismatch on: " << (int)t.initialValue;
+        EXPECT_EQ((bool)(cpu.P & FLAG_NEGATIVE), t.expectedNegative) << "Negative mismatch on: " << (int)t.initialValue;
+        EXPECT_EQ((bool)(cpu.P & FLAG_ZERO), t.expectedZero) << "Zero mismatch on: " << (int)t.initialValue;
+    }
+}
+
+TEST_F(ace64Test, BITAbsoluteTest) {
+    // given: A = $0F, Memory at $2000 = $C0 (1100 0000)
+    cpu.A = 0x0F;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x2C; // BIT Absolute
+    cpu.Memory[0x1001] = 0x00; 
+    cpu.Memory[0x1002] = 0x20;
+    cpu.Memory[0x2000] = 0xC0; 
+    cpu.P = 0x00;
+
+    // when: 
+    // 1. (0x0F & 0xC0) is 0 -> Zero Flag = 1
+    // 2. Bit 7 of 0xC0 is 1 -> Negative Flag = 1
+    // 3. Bit 6 of 0xC0 is 1 -> Overflow Flag = 1
+    execute(&cpu);
+
+    // then:
+    EXPECT_EQ(cpu.A, 0x0F); // Accumulator MUST NOT change
+    EXPECT_TRUE(cpu.P & FLAG_ZERO);
+    EXPECT_TRUE(cpu.P & FLAG_NEGATIVE);
+    EXPECT_TRUE(cpu.P & FLAG_OVERFLOW);
+}
+
+TEST_F(ace64Test, CMPImmediateGreater) {
+    cpu.A = 0x50;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0xC9; // CMP #$10
+    cpu.Memory[0x1001] = 0x10;
+
+    execute(&cpu);
+
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);    // 0x50 > 0x10
+    EXPECT_FALSE(cpu.P & FLAG_ZERO);
+    EXPECT_FALSE(cpu.P & FLAG_NEGATIVE);
+}
+
+TEST_F(ace64Test, CMPZeroPageEqual) {
+    cpu.A = 0x10;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0xC5; 
+    cpu.Memory[0x1001] = 0x80;
+    cpu.Memory[0x0080] = 0x10; // Match
+
+    execute(&cpu);
+
+    EXPECT_TRUE(cpu.P & FLAG_CARRY); 
+    EXPECT_TRUE(cpu.P & FLAG_ZERO);    // Result is 0
+    EXPECT_FALSE(cpu.P & FLAG_NEGATIVE);
+}
+
+TEST_F(ace64Test, CMPZeroPageXLess) {
+    cpu.A = 0x05;
+    cpu.X = 0x05;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0xD5; 
+    cpu.Memory[0x1001] = 0x10; // Address $15
+    cpu.Memory[0x0015] = 0x10; // 0x05 < 0x10
+
+    execute(&cpu);
+
+    EXPECT_FALSE(cpu.P & FLAG_CARRY); 
+    EXPECT_FALSE(cpu.P & FLAG_ZERO);
+    EXPECT_TRUE(cpu.P & FLAG_NEGATIVE); // 0x05 - 0x10 = 0xF5 (Bit 7 set)
+}
+
+TEST_F(ace64Test, CMPAbsolute) {
+    cpu.A = 0x05;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0xCD; 
+    cpu.Memory[0x1001] = 0x00; 
+    cpu.Memory[0x1002] = 0x20;
+    cpu.Memory[0x2000] = 0x01; // 0xFF > 0x01
+
+    execute(&cpu);
+
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);
+    EXPECT_FALSE(cpu.P & FLAG_NEGATIVE);
+}
+
+
+TEST_F(ace64Test, CMPAbsoluteXPagePenalty) {
+    cpu.A = 0x10;
+    cpu.X = 0xFF; // Crosses page
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0xDD; 
+    cpu.Memory[0x1001] = 0x01; // Base $2001 -> Effective $2100
+    cpu.Memory[0x1002] = 0x20;
+    cpu.Memory[0x2100] = 0x10;
+
+    Sint32 cycles = execute(&cpu);
+
+    EXPECT_EQ(cycles, 5); // 4 + 1
+    EXPECT_TRUE(cpu.P & FLAG_ZERO);
+}
+
+
+TEST_F(ace64Test, CMPIndirectX) {
+    cpu.A = 0x40;
+    cpu.X = 0x01;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0xC1; 
+    cpu.Memory[0x1001] = 0x10; // Ptr $11 -> $2000
+    cpu.Memory[0x0011] = 0x00;
+    cpu.Memory[0x0012] = 0x20;
+    cpu.Memory[0x2000] = 0x80; // 0x40 < 0x80
+
+    execute(&cpu);
+
+    EXPECT_FALSE(cpu.P & FLAG_CARRY);
+    EXPECT_TRUE(cpu.P & FLAG_NEGATIVE); // 0x40 - 0x80 = 0xC0
+}
+
+TEST_F(ace64Test, CMPIndirectY) {
+    cpu.A = 0x10;
+    cpu.Y = 0x00;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0xD1; 
+    cpu.Memory[0x1001] = 0x20; // Ptr $20 -> $3000
+    cpu.Memory[0x0020] = 0x00;
+    cpu.Memory[0x0021] = 0x30;
+    cpu.Memory[0x3000] = 0x10;
+
+    execute(&cpu);
+
+    EXPECT_TRUE(cpu.P & FLAG_ZERO);
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);
+}
+
+
+TEST_F(ace64Test, CPXImmediateGreater) {
+    cpu.X = 0x50;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = INS_CPX_IM;
+    cpu.Memory[0x1001] = 0x10;
+
+    execute(&cpu);
+
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);    // 0x50 > 0x10
+    EXPECT_FALSE(cpu.P & FLAG_ZERO);
+    EXPECT_FALSE(cpu.P & FLAG_NEGATIVE);
+}
+
+TEST_F(ace64Test, CPXZeroPageEqual) {
+    cpu.X = 0x10;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = INS_CPX_ZP; 
+    cpu.Memory[0x1001] = 0x80;
+    cpu.Memory[0x0080] = 0x10; // Match
+
+    execute(&cpu);
+
+    EXPECT_TRUE(cpu.P & FLAG_CARRY); 
+    EXPECT_TRUE(cpu.P & FLAG_ZERO);    // Result is 0
+    EXPECT_FALSE(cpu.P & FLAG_NEGATIVE);
+}
+
+TEST_F(ace64Test, CPXAbsolute) {
+    cpu.X = 0x05;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = INS_CPX_ABS; 
+    cpu.Memory[0x1001] = 0x00; 
+    cpu.Memory[0x1002] = 0x20;
+    cpu.Memory[0x2000] = 0x01; // 0xFF > 0x01
+
+    execute(&cpu);
+
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);
+    EXPECT_FALSE(cpu.P & FLAG_NEGATIVE);
+}
+
+TEST_F(ace64Test, CPYImmediateGreater) {
+    cpu.Y = 0x50;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = INS_CPY_IM; 
+    cpu.Memory[0x1001] = 0x10;
+
+    execute(&cpu);
+
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);    // 0x50 > 0x10
+    EXPECT_FALSE(cpu.P & FLAG_ZERO);
+    EXPECT_FALSE(cpu.P & FLAG_NEGATIVE);
+}
+
+TEST_F(ace64Test, CPYZeroPageEqual) {
+    cpu.Y = 0x10;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = INS_CPY_ZP; 
+    cpu.Memory[0x1001] = 0x80;
+    cpu.Memory[0x0080] = 0x10; // Match
+
+    execute(&cpu);
+
+    EXPECT_TRUE(cpu.P & FLAG_CARRY); 
+    EXPECT_TRUE(cpu.P & FLAG_ZERO);    // Result is 0
+    EXPECT_FALSE(cpu.P & FLAG_NEGATIVE);
+}
+
+TEST_F(ace64Test, CPYAbsolute) {
+    cpu.Y = 0x05;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = INS_CPY_ABS; 
+    cpu.Memory[0x1001] = 0x00; 
+    cpu.Memory[0x1002] = 0x20;
+    cpu.Memory[0x2000] = 0x01; // 0xFF > 0x01
+
+    execute(&cpu);
+
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);
+    EXPECT_FALSE(cpu.P & FLAG_NEGATIVE);
 }
