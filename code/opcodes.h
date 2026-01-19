@@ -9,7 +9,36 @@ extern "C" {
 
 typedef void (*OpcodeFunction)(CPU *cpu, Sint32 *cycles);
 
-// Opcode functions:
+/* -------------------------------------------------------------------
+ * Helper functions
+ * -------------------------------------------------------------------*/
+
+// Address functions
+Word get_indirect_indexed_y (CPU *cpu, Sint32 *cycles, bool forcePageBoundary);
+Word get_indexed_indirect_x (CPU *cpu, Sint32 *cycles);
+Word get_addr_zpx (CPU *cpu, Sint32 *cycles);
+Word get_addr_zpy (CPU *cpu, Sint32 *cycles);
+Word get_addr_abs (CPU *cpu, Sint32 *cycles);
+Word get_addr_abx (CPU *cpu, Sint32 *cycles, bool forcePageBoundary);
+Word get_addr_aby (CPU *cpu, Sint32 *cycles, bool forcePageBoundary);
+
+// Stack functions
+void stack_push (CPU *cpu, Byte value, Sint32 *cycles);
+Byte stack_pop (CPU *cpu, Sint32 *cycles);
+
+// Logic functions
+Byte perform_asl_logic (CPU *cpu, Byte value);
+Byte perform_lsr_logic (CPU *cpu, Byte value);
+Byte perform_rol_logic (CPU *cpu, Byte value);
+Byte perform_ror_logic (CPU *cpu, Byte value);
+Byte perform_eor_logic (CPU *cpu, Byte value);
+Byte perform_ora_logic (CPU *cpu, Byte value);
+void perform_bit_logic (CPU *cpu, Byte value);
+
+/* -------------------------------------------------------------------
+ * Operator functions
+ * -------------------------------------------------------------------*/
+// AND: Bitwise AND with Accumulator
 void ins_and_im(CPU *cpu, Sint32 *cycles);
 void ins_and_zp(CPU *cpu, Sint32 *cycles);
 void ins_and_zpx(CPU *cpu, Sint32 *cycles);
