@@ -40,6 +40,9 @@ void perform_adc_binary (CPU *cpu, Byte value);
 void perform_adc_decimal (CPU *cpu, Byte value);
 void perform_sbc_decimal (CPU *cpu, Byte value);
 
+// Branch helpers
+void execute_branch(CPU* cpu, Sint32 *cycles, bool condition);
+
 /* -------------------------------------------------------------------
  * Operator functions
  * -------------------------------------------------------------------*/
@@ -182,10 +185,10 @@ void ins_clv (CPU *cpu, Sint32 *cycles);
 // JMP: No carry associated.  Indirect JMP must never use a vector
 // beginning on the last byte of a page
 // JMP ($30FF) will read low byte from $30FF, and high byte from $3000
-void ins_jsr (CPU *cpu, Sint32 *cycles); // Implemented
+void ins_jsr (CPU *cpu, Sint32 *cycles); 
 void ins_jmp_ind (CPU *cpu, Sint32 *cycles);
 void ins_jmp_abs (CPU *cpu, Sint32 *cycles);
-void ins_jsr_abs (CPU *cpu, Sint32 *cycles); // Implemented
+void ins_jsr_abs (CPU *cpu, Sint32 *cycles); 
 void ins_rts (CPU *cpu, Sint32 *cycles);
 
 // RTI: Return from Interrupt.  Retrieves the Processor Status byte and PC from
@@ -218,69 +221,79 @@ void ins_sbc_idy (CPU *cpu, Sint32 *cycles);
 
 // LDA: Load Accumulator.  Add 1 cycle if page boundary is crossed
 // Flags: N-----Z-
-void ins_lda_im (CPU *cpu, Sint32 *cycles);  // Implemented
-void ins_lda_zp (CPU *cpu, Sint32 *cycles);  // Implemented
-void ins_lda_zpx (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_lda_abs (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_lda_abx (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_lda_aby (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_lda_idx (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_lda_idy (CPU *cpu, Sint32 *cycles); // Implemented
+void ins_lda_im (CPU *cpu, Sint32 *cycles);  
+void ins_lda_zp (CPU *cpu, Sint32 *cycles);  
+void ins_lda_zpx (CPU *cpu, Sint32 *cycles); 
+void ins_lda_abs (CPU *cpu, Sint32 *cycles); 
+void ins_lda_abx (CPU *cpu, Sint32 *cycles); 
+void ins_lda_aby (CPU *cpu, Sint32 *cycles); 
+void ins_lda_idx (CPU *cpu, Sint32 *cycles); 
+void ins_lda_idy (CPU *cpu, Sint32 *cycles); 
 
 // LDX, LDY: Load X Register, Load Y Register
 // Flags: N-----Z-
-void ins_ldx_im (CPU *cpu, Sint32 *cycles);  // Implemented
-void ins_ldx_zp (CPU *cpu, Sint32 *cycles);  // Implemented
-void ins_ldx_zpy (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_ldx_abs (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_ldx_aby (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_ldy_im (CPU *cpu, Sint32 *cycles);  // Implemented
-void ins_ldy_zp (CPU *cpu, Sint32 *cycles);  // Implemented
-void ins_ldy_zpx (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_ldy_abs (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_ldy_abx (CPU *cpu, Sint32 *cycles); // Implemented
+void ins_ldx_im (CPU *cpu, Sint32 *cycles);  
+void ins_ldx_zp (CPU *cpu, Sint32 *cycles);  
+void ins_ldx_zpy (CPU *cpu, Sint32 *cycles); 
+void ins_ldx_abs (CPU *cpu, Sint32 *cycles); 
+void ins_ldx_aby (CPU *cpu, Sint32 *cycles); 
+void ins_ldy_im (CPU *cpu, Sint32 *cycles);  
+void ins_ldy_zp (CPU *cpu, Sint32 *cycles);  
+void ins_ldy_zpx (CPU *cpu, Sint32 *cycles); 
+void ins_ldy_abs (CPU *cpu, Sint32 *cycles); 
+void ins_ldy_abx (CPU *cpu, Sint32 *cycles); 
+
+// Illegal LDs
+
+void ins_lax_im (CPU *cpu, Sint32 *cycles);  
+void ins_lax_zp (CPU *cpu, Sint32 *cycles);  
+void ins_lax_zpy (CPU *cpu, Sint32 *cycles); 
+void ins_lax_abs (CPU *cpu, Sint32 *cycles); 
+void ins_lax_aby (CPU *cpu, Sint32 *cycles); 
+void ins_lax_idx (CPU *cpu, Sint32 *cycles); 
+void ins_lax_idy (CPU *cpu, Sint32 *cycles); 
 
 // STA: Store Accumulator
 // Flags: --------
-void ins_sta_zp (CPU *cpu, Sint32 *cycles);  // Implemented
-void ins_sta_zpx (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_sta_abs (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_sta_abx (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_sta_aby (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_sta_idx (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_sta_idy (CPU *cpu, Sint32 *cycles); // Implemented
+void ins_sta_zp (CPU *cpu, Sint32 *cycles);  
+void ins_sta_zpx (CPU *cpu, Sint32 *cycles); 
+void ins_sta_abs (CPU *cpu, Sint32 *cycles); 
+void ins_sta_abx (CPU *cpu, Sint32 *cycles); 
+void ins_sta_aby (CPU *cpu, Sint32 *cycles); 
+void ins_sta_idx (CPU *cpu, Sint32 *cycles); 
+void ins_sta_idy (CPU *cpu, Sint32 *cycles); 
 
 // STX, STY: Store X Reg, Store Y Reg
 // Flags: --------
-void ins_stx_zp (CPU *cpu, Sint32 *cycles);  // Implemented
-void ins_stx_zpy (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_stx_abs (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_sty_zp (CPU *cpu, Sint32 *cycles);  // Implemented
-void ins_sty_zpx (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_sty_abs (CPU *cpu, Sint32 *cycles); // Implemented
+void ins_stx_zp (CPU *cpu, Sint32 *cycles);  
+void ins_stx_zpy (CPU *cpu, Sint32 *cycles); 
+void ins_stx_abs (CPU *cpu, Sint32 *cycles); 
+void ins_sty_zp (CPU *cpu, Sint32 *cycles);  
+void ins_sty_zpx (CPU *cpu, Sint32 *cycles); 
+void ins_sty_abs (CPU *cpu, Sint32 *cycles); 
 
 // DEC: Decrement Memory
 // Flags: N-----Z-
-void ins_dec_zp (CPU *cpu, Sint32 *cycles);  // Implemented
-void ins_dec_zpx (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_dec_abs (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_dec_abx (CPU *cpu, Sint32 *cycles); // Implemented
+void ins_dec_zp (CPU *cpu, Sint32 *cycles);  
+void ins_dec_zpx (CPU *cpu, Sint32 *cycles); 
+void ins_dec_abs (CPU *cpu, Sint32 *cycles); 
+void ins_dec_abx (CPU *cpu, Sint32 *cycles); 
 
 // INC: Increment Memory
 // Flags: N-----Z-
-void ins_inc_zp (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_inc_zpx (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_inc_abs (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_inc_abx (CPU *cpu, Sint32 *cycles); // Implemented
+void ins_inc_zp (CPU *cpu, Sint32 *cycles); 
+void ins_inc_zpx (CPU *cpu, Sint32 *cycles); 
+void ins_inc_abs (CPU *cpu, Sint32 *cycles); 
+void ins_inc_abx (CPU *cpu, Sint32 *cycles); 
 
 /* Register Instructions */
 
 // Implied mode, length of one byte and requre 2 machine cycles
 // Flags: N-----Z-
-void ins_tax (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_tay (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_txa (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_tya (CPU *cpu, Sint32 *cycles); // Implemented
+void ins_tax (CPU *cpu, Sint32 *cycles); 
+void ins_tay (CPU *cpu, Sint32 *cycles); 
+void ins_txa (CPU *cpu, Sint32 *cycles); 
+void ins_tya (CPU *cpu, Sint32 *cycles); 
 void ins_dex (CPU *cpu, Sint32 *cycles);
 void ins_dey (CPU *cpu, Sint32 *cycles);
 void ins_inx (CPU *cpu, Sint32 *cycles);
@@ -291,16 +304,16 @@ void ins_iny (CPU *cpu, Sint32 *cycles);
 // Implied mode, 1 byte.  Stack is on page $01 ($0100-$01FF), and works
 // top-down.  Decrement on push, Increment on pull(pop)
 // Flags --------
-void ins_pha (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_php (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_txs (CPU *cpu, Sint32 *cycles); // Implemented
+void ins_pha (CPU *cpu, Sint32 *cycles); 
+void ins_php (CPU *cpu, Sint32 *cycles); 
+void ins_txs (CPU *cpu, Sint32 *cycles); 
 
 // Flags: N-----Z-
-void ins_pla (CPU *cpu, Sint32 *cycles); // Implemented
-void ins_tsx (CPU *cpu, Sint32 *cycles); // Implemented
+void ins_pla (CPU *cpu, Sint32 *cycles); 
+void ins_tsx (CPU *cpu, Sint32 *cycles); 
 
 // Flags: NV-BDIZC
-void ins_plp (CPU *cpu, Sint32 *cycles); // Implemented
+void ins_plp (CPU *cpu, Sint32 *cycles); 
 
 /* Other Instructions */
 // Sets the B flag, then generates a forced interrupt.  Interrupt flag is
@@ -311,7 +324,7 @@ void ins_brk (CPU *cpu, Sint32 *cycles);
 // 2 machine cycles, does not affect any register or mem location
 // Flags: --------
 void ins_nop (CPU *cpu, Sint32 *cycles);
-
+void ins_illegal (CPU *cpu, Sint32 *cycles);
 #ifdef __cplusplus
 }
 #endif

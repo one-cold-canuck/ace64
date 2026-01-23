@@ -1,5 +1,4 @@
 #include "opcodes.h"
-#include <stdio.h>
 
 // Helper functions:
 Word
@@ -417,6 +416,20 @@ perform_sbc_decimal (CPU *cpu, Byte value)
   set_status_flag (&cpu->P, cpu->A);
 }
 
+void execute_branch(CPU *cpu, Sint32 *cycles, bool condition) {
+  SByte offset = (SByte)fetch_byte(cpu, cycles);
+
+  if(condition) {
+    burn_cycle(cpu, cycles);
+    Word originalPC = cpu->PC;
+    cpu->PC += offset;
+    
+    if ((originalPC & 0xFF00) != (cpu->PC & 0xFF00)) {
+      burn_cycle(cpu, cycles);
+    }
+  }
+}
+
 // Opcode functions:
 void
 ins_and_im (CPU *cpu, Sint32 *cycles)
@@ -829,42 +842,42 @@ ins_ror_abx (CPU *cpu, Sint32 *cycles)
 void
 ins_bpl (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  execute_branch(cpu, cycles, !(cpu->P & FLAG_NEGATIVE));
 }
 void
 ins_bmi (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  execute_branch(cpu, cycles, (cpu->P & FLAG_NEGATIVE));
 }
 void
 ins_bvc (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  execute_branch(cpu, cycles, !(cpu->P & FLAG_OVERFLOW));
 }
 void
 ins_bvs (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  execute_branch(cpu, cycles, (cpu->P & FLAG_OVERFLOW));
 }
 void
-ins_bcc (CPU *cpu, Sint32 *cycles)
+ins_bcc(CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  execute_branch(cpu, cycles, !(cpu->P & FLAG_CARRY));
 }
 void
 ins_bcs (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  execute_branch(cpu, cycles, (cpu->P & FLAG_CARRY));
 }
 void
 ins_bne (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  execute_branch(cpu, cycles, !(cpu->P & FLAG_ZERO));
 }
 void
 ins_beq (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  execute_branch(cpu, cycles, (cpu->P & FLAG_ZERO));
 }
 
 /* Compare Instructions */
@@ -1528,6 +1541,78 @@ ins_ldy_abx (CPU *cpu, Sint32 *cycles)
   cpu->Y = read_byte (cpu, address, cycles);
   set_status_flag (&cpu->P, cpu->Y);
 }
+void
+ins_lax_im (CPU *cpu, Sint32 *cycles)
+{
+  Byte imm = fetch_byte (cpu, cycles);
+  Byte value = cpu->A;
+  Byte result = (cpu->A | MAGIC_VALUE) & imm;
+  // The MAGIC_VALUE is used here to simulate the 6510's behaviour when running
+  // this illegal opcode
+  cpu->A =  result;
+  cpu->X = result;
+  set_status_flag (&cpu->P, value);
+}
+
+void
+ins_lax_zp (CPU *cpu, Sint32 *cycles)
+{
+  Word address = fetch_byte (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = value;
+  cpu->X = value;
+  set_status_flag (&cpu->P, value);
+}
+
+void
+ins_lax_zpy (CPU *cpu, Sint32 *cycles)
+{
+  Word address = get_addr_zpy(cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = value;
+  cpu->X = value;
+  set_status_flag (&cpu->P, value);
+}
+
+void
+ins_lax_abs (CPU *cpu, Sint32 *cycles)
+{
+  Word address = get_addr_abs (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = value;
+  cpu->X = value;
+  set_status_flag (&cpu->P, value);
+}
+
+void
+ins_lax_aby (CPU *cpu, Sint32 *cycles)
+{
+  Word address = get_addr_aby (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = value;
+  cpu->X = value;
+  set_status_flag (&cpu->P, value);
+}
+
+void
+ins_lax_idx (CPU *cpu, Sint32 *cycles)
+{
+  Word address = get_indexed_indirect_x (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = value;
+  cpu->X = value;
+  set_status_flag (&cpu->P, value);
+}
+
+void
+ins_lax_idy (CPU *cpu, Sint32 *cycles)
+{
+  Word address = get_indirect_indexed_y (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  cpu->A = value;
+  cpu->X = value;
+  set_status_flag (&cpu->P, value);
+}
 
 // STA: Store Accumulator
 // Flags: --------
@@ -1741,22 +1826,30 @@ ins_tya (CPU *cpu, Sint32 *cycles)
 void
 ins_dex (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle(cpu, cycles);
+  cpu->X--;
+  set_status_flag(&cpu->P, cpu->X);
 }
 void
 ins_dey (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle(cpu, cycles);
+  cpu->Y--;
+  set_status_flag(&cpu->P, cpu->Y);
 }
 void
 ins_inx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle(cpu, cycles);
+  cpu->X++;
+  set_status_flag(&cpu->P, cpu->X);
 }
 void
 ins_iny (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle(cpu, cycles);
+  cpu->Y++;
+  set_status_flag(&cpu->P, cpu->Y);
 }
 
 /* Stack Instructions */
@@ -1821,7 +1914,18 @@ ins_plp (CPU *cpu, Sint32 *cycles)
 void
 ins_brk (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle (cpu, cycles);
+  cpu->PC++;
+  stack_push(cpu, (cpu->PC >> 8) & 0xFF, cycles);
+  stack_push(cpu, cpu->PC & 0xFF, cycles);
+  stack_push(cpu, cpu->P | FLAG_BREAK, cycles);
+
+  Byte loByte = read_byte(cpu, 0xFFFE, cycles);  // Interrupt handler
+  Byte hiByte = read_byte(cpu, 0xFFFF, cycles);  //
+
+  Word interruptAddress = get_word_address(loByte, hiByte);
+  cpu->PC = interruptAddress;
+  cpu->P |= FLAG_INTERRUPT_DISABLE;
 }
 
 // 2 machine cycles, does not affect any register or mem location
@@ -1829,5 +1933,5 @@ ins_brk (CPU *cpu, Sint32 *cycles)
 void
 ins_nop (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle(cpu, cycles);
 }

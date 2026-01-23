@@ -214,6 +214,15 @@ extern "C" {
 #define INS_LDY_ABS 0xAC // Implemented
 #define INS_LDY_ABX 0xBC // Implemented
 
+// LAX: Illegal opcode
+#define INS_LAX_IM 0xAB
+#define INS_LAX_ZP 0xA7
+#define INS_LAX_ZPY 0xB7
+#define INS_LAX_ABS 0xAF
+#define INS_LAX_ABY 0xBF
+#define INS_LAX_IDX 0xA3
+#define INS_LAX_IDY 0xB3
+
 // STA: Store Accumulator
 // Flags: --------
 #define INS_STA_ZP 0x85  // Implemented
@@ -296,8 +305,14 @@ extern "C" {
 #define FLAG_ZERO 0x02
 #define FLAG_CARRY 0x01
 
+// For simulating illegal opcodes where the original hardware would read a value 
+// that was dependant on the temperature of the chip
+// Setting to 0xEE as per documentation in the C64 Wiki (https://www.c64-wiki.com/wiki/LAX)
+#define MAGIC_VALUE 0xEE
+
 typedef unsigned char Byte;
 typedef unsigned short Word;
+typedef signed char SByte;
 
 typedef uint32_t Uint32;
 typedef int32_t Sint32;
