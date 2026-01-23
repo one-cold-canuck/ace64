@@ -35,6 +35,11 @@ Byte perform_eor_logic (CPU *cpu, Byte value);
 Byte perform_ora_logic (CPU *cpu, Byte value);
 void perform_bit_logic (CPU *cpu, Byte value);
 
+// Math functions
+void perform_adc_binary (CPU *cpu, Byte value);
+void perform_adc_decimal (CPU *cpu, Byte value);
+void perform_sbc_decimal (CPU *cpu, Byte value);
+
 /* -------------------------------------------------------------------
  * Operator functions
  * -------------------------------------------------------------------*/

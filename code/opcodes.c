@@ -58,6 +58,16 @@ get_addr_zpy (CPU *cpu, Sint32 *cycles)
 }
 
 Word
+get_addr_abs (CPU *cpu, Sint32 *cycles)
+{
+  Byte loByte = fetch_byte (cpu, cycles);
+  Byte hiByte = fetch_byte (cpu, cycles);
+
+  Word address = get_word_address (loByte, hiByte);
+  return address;
+}
+
+Word
 get_addr_abx (CPU *cpu, Sint32 *cycles, bool forcePageBoundary)
 {
   Byte loByte = fetch_byte (cpu, cycles);
@@ -110,16 +120,6 @@ stack_pop (CPU *cpu, Sint32 *cycles)
   cpu->SP++;
   Word address = 0x0100 + cpu->SP;
   return read_byte (cpu, address, cycles);
-}
-
-Word
-get_addr_abs (CPU *cpu, Sint32 *cycles)
-{
-  Byte loByte = fetch_byte (cpu, cycles);
-  Byte hiByte = fetch_byte (cpu, cycles);
-
-  Word address = get_word_address (loByte, hiByte);
-  return address;
 }
 
 Byte
@@ -283,6 +283,138 @@ perform_cmp_logic (CPU *cpu, Byte registerValue, Byte readValue)
     {
       clear_flag (&cpu->P, FLAG_NEGATIVE);
     }
+}
+
+void
+perform_adc_binary (CPU *cpu, Byte value)
+{
+
+  Byte accValue = cpu->A;
+  Byte carry = get_carry_flag (cpu);
+
+  Word result = (Word)accValue + (Word)value + (Word)carry;
+
+  if (result > 0xFF)
+    {
+      set_flag (&cpu->P, FLAG_CARRY);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_CARRY);
+    }
+
+  if (~(accValue ^ value) & (accValue ^ (Byte)result) & 0x80)
+    {
+      set_flag (&cpu->P, FLAG_OVERFLOW);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_OVERFLOW);
+    }
+
+  cpu->A = (Byte)(result & 0xFF);
+
+  set_status_flag (&cpu->P, cpu->A);
+}
+
+void
+perform_adc_decimal (CPU *cpu, Byte value)
+{
+  Byte startA = cpu->A;
+  Byte carry = get_carry_flag (cpu);
+
+  int lo = (cpu->A & 0x0F) + (value & 0x0F) + carry;
+  if (lo > 0x09)
+    {
+      lo += 0x06;
+    }
+
+  int intermediateCarry = (lo > 0x0F) ? 1 : 0;
+
+  int hi = (startA >> 4) + (value >> 4) + intermediateCarry;
+
+  Word binarySum = (Word)startA + (Word)value + (Word)carry;
+
+  if ((~(startA ^ value) & (startA ^ (Byte)binarySum)) & 0x80)
+    {
+      set_flag (&cpu->P, FLAG_OVERFLOW);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_OVERFLOW);
+    }
+
+  if (binarySum & 0x80)
+    {
+      set_flag (&cpu->P, FLAG_NEGATIVE);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_NEGATIVE);
+    }
+
+  if (hi > 0x09)
+    {
+      hi += 0x06;
+    }
+
+  if (hi > 0x0F)
+    {
+      set_flag (&cpu->P, FLAG_CARRY);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_CARRY);
+    }
+
+  cpu->A = ((hi << 4) | (lo & 0x0F)) & 0xFF;
+
+  set_status_flag (&cpu->P, binarySum);
+}
+
+void
+perform_sbc_decimal (CPU *cpu, Byte value)
+{
+  Byte carry = get_carry_flag (cpu);
+
+  int loA
+      = (int)(cpu->A & 0x0F) - (int)(value & 0x0F) - (1 - carry); // low nibble
+  int hiA = (int)(cpu->A >> 4) - (int)(value >> 4); // high nibble
+
+  int binarySum = (int)cpu->A - (int)value - (1 - carry);
+
+  if (loA < 0)
+    {
+      loA -= 6;
+      hiA -= 1;
+    }
+
+  if (hiA < 0)
+    {
+      hiA -= 6;
+    }
+
+  if (binarySum >= 0)
+    {
+      set_flag (&cpu->P, FLAG_CARRY);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_CARRY);
+    }
+
+  if ((~(cpu->A ^ value) & (cpu->A ^ (Byte)binarySum)) & 0x80)
+    {
+      set_flag (&cpu->P, FLAG_OVERFLOW);
+    }
+  else
+    {
+      clear_flag (&cpu->P, FLAG_OVERFLOW);
+    }
+
+  cpu->A = ((hiA << 4) | (loA & 0x0F)) & 0xFF;
+
+  set_status_flag (&cpu->P, cpu->A);
 }
 
 // Opcode functions:
@@ -881,12 +1013,15 @@ ins_cpy_abs (CPU *cpu, Sint32 *cycles)
 void
 ins_clc (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle (cpu, cycles);
+  clear_flag (&cpu->P, FLAG_CARRY);
 }
+
 void
 ins_sec (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle (cpu, cycles);
+  set_flag (&cpu->P, FLAG_CARRY);
 }
 
 // Decimal set/clear
@@ -894,12 +1029,15 @@ ins_sec (CPU *cpu, Sint32 *cycles)
 void
 ins_cld (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle (cpu, cycles);
+  clear_flag (&cpu->P, FLAG_DECIMAL_MODE);
 }
+
 void
 ins_sed (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle (cpu, cycles);
+  set_flag (&cpu->P, FLAG_DECIMAL_MODE);
 }
 
 // Interrupt set/clear
@@ -907,20 +1045,24 @@ ins_sed (CPU *cpu, Sint32 *cycles)
 void
 ins_cli (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle (cpu, cycles);
+  clear_flag (&cpu->P, FLAG_INTERRUPT_DISABLE);
 }
+
 void
 ins_sei (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle (cpu, cycles);
+  set_flag (&cpu->P, FLAG_INTERRUPT_DISABLE);
 }
 
-// Overflow set/clear
+// Overflow clear
 // Flags: -V------
 void
 ins_clv (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle (cpu, cycles);
+  clear_flag (&cpu->P, FLAG_OVERFLOW);
 }
 
 /* Jump Instructions */
@@ -938,7 +1080,14 @@ ins_jmp_abs (CPU *cpu, Sint32 *cycles)
 void
 ins_jmp_ind (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word pointerAddress = get_addr_abs (cpu, cycles);
+
+  Byte loByte = read_byte (cpu, pointerAddress, cycles);
+
+  Word hiAddress = (pointerAddress & 0xFF00) | ((pointerAddress + 1) & 0xFF);
+  Byte hiByte = read_byte (cpu, hiAddress, cycles);
+
+  cpu->PC = (hiByte << 8) | loByte;
 }
 
 void
@@ -958,16 +1107,36 @@ ins_jsr (CPU *cpu, Sint32 *cycles)
 void
 ins_rts (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle (cpu, cycles);
+  burn_cycle (cpu, cycles);
+
+  Byte loByte = stack_pop (cpu, cycles);
+  Byte hiByte = stack_pop (cpu, cycles);
+
+  Word address = get_word_address (loByte, hiByte);
+  burn_cycle (cpu, cycles);
+  cpu->PC = address;
+  cpu->PC++;
 }
 
 // RTI: Return from Interrupt.  Retrieves the Processor Status byte and PC from
 // stack in that order.  Unlike RTS, return address on the stack is the actual
 // address rather than address-1 Flags: NV-BDIZC
+
 void
 ins_rti (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  burn_cycle (cpu, cycles);
+  burn_cycle (cpu, cycles);
+
+  Byte pValue = stack_pop (cpu, cycles);
+  cpu->P = (pValue & 0xEF) | 0x20;
+
+  Byte loByte = stack_pop (cpu, cycles);
+  Byte hiByte = stack_pop (cpu, cycles);
+
+  Word address = get_word_address (loByte, hiByte);
+  cpu->PC = address;
 }
 
 /* Math Instructions */
@@ -976,83 +1145,240 @@ ins_rti (CPU *cpu, Sint32 *cycles)
 void
 ins_adc_im (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Byte value = fetch_byte (cpu, cycles);
+
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_adc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, value);
+    }
 }
+
 void
 ins_adc_zp (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = fetch_byte (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_adc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, value);
+    }
 }
+
 void
 ins_adc_zpx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_zpx (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_adc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, value);
+    }
 }
+
 void
 ins_adc_abs (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abs (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_adc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, value);
+    }
 }
+
 void
 ins_adc_abx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abx (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_adc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, value);
+    }
 }
+
 void
 ins_adc_aby (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_aby (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_adc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, value);
+    }
 }
+
 void
 ins_adc_idx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_indexed_indirect_x (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_adc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, value);
+    }
 }
+
 void
 ins_adc_idy (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_indirect_indexed_y (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_adc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, value);
+    }
 }
 
 void
 ins_sbc_im (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Byte value = fetch_byte (cpu, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_sbc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, ~value);
+    }
 }
+
 void
 ins_sbc_zp (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = fetch_byte (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_sbc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, ~value);
+    }
 }
+
 void
 ins_sbc_zpx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_zpx (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_sbc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, ~value);
+    }
 }
+
 void
 ins_sbc_abs (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abs (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_sbc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, ~value);
+    }
 }
+
 void
 ins_sbc_abx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_abx (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_sbc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, ~value);
+    }
 }
+
 void
 ins_sbc_aby (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_addr_aby (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_sbc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, ~value);
+    }
 }
+
 void
 ins_sbc_idx (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_indexed_indirect_x (cpu, cycles);
+  Byte value = read_byte (cpu, address, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_sbc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, ~value);
+    }
 }
+
 void
 ins_sbc_idy (CPU *cpu, Sint32 *cycles)
 {
-  printf ("Operation not handled \n");
+  Word address = get_indirect_indexed_y (cpu, cycles, false);
+  Byte value = read_byte (cpu, address, cycles);
+  if (cpu->P & FLAG_DECIMAL_MODE)
+    {
+      perform_sbc_decimal (cpu, value);
+    }
+  else
+    {
+      perform_adc_binary (cpu, ~value);
+    }
 }
 
 /* Memory Instructions */

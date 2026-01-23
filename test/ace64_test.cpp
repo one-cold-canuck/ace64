@@ -2283,3 +2283,229 @@ TEST_F(ace64Test, CPYAbsolute) {
     EXPECT_TRUE(cpu.P & FLAG_CARRY);
     EXPECT_FALSE(cpu.P & FLAG_NEGATIVE);
 }
+
+TEST_F(ace64Test, JMPIndirectPageBoundaryBug) {
+    // JMP ($10FF)
+    cpu.PC = 0x0000;
+    cpu.Memory[0x0000] = 0x6C; // JMP Indirect
+    cpu.Memory[0x0001] = 0xFF; // Lo
+    cpu.Memory[0x0002] = 0x10; // Hi
+
+    cpu.Memory[0x10FF] = 0xAD; // Target Lo
+    cpu.Memory[0x1000] = 0xDE; // Target Hi (This is the bug!)
+    // If it worked "correctly", it would look at $1100
+
+    execute(&cpu);
+
+    EXPECT_EQ(cpu.PC, 0xDEAD);
+}
+
+TEST_F(ace64Test, JSR_RTS_RoundTrip) {
+    // --- GIVEN ---
+    // Program starts at $1000
+    // $1000: JSR $2000 (Opcode $20, Lo $00, Hi $20)
+    // $1003: LDX #$42   (The instruction we expect to return to)
+    // $2000: RTS        (Opcode $60)
+    
+    cpu.PC = 0x1000;
+    cpu.SP = 0xFF; // Top of stack
+
+    // Main Code
+    cpu.Memory[0x1000] = 0x20; // JSR
+    cpu.Memory[0x1001] = 0x00; 
+    cpu.Memory[0x1002] = 0x20; 
+    cpu.Memory[0x1003] = 0xA2; // LDX #$42 (Opcode)
+    cpu.Memory[0x1004] = 0x42; // LDX operand
+
+    // Subroutine Code
+    cpu.Memory[0x2000] = 0x60; // RTS
+
+    // --- WHEN ---
+    
+    // 1. Execute JSR
+    Sint32 cyclesJSR = execute(&cpu); 
+    
+    // Check JSR state
+    EXPECT_EQ(cpu.PC, 0x2000);
+    EXPECT_EQ(cpu.SP, 0xFD); // Pushed two bytes
+    EXPECT_EQ(cpu.Memory[0x01FF], 0x10); // High byte of last byte of JSR ($1002)
+    EXPECT_EQ(cpu.Memory[0x01FE], 0x02); // Low byte of last byte of JSR ($1002)
+    EXPECT_EQ(cyclesJSR, 6);
+
+    // 2. Execute RTS
+    Sint32 cyclesRTS = execute(&cpu);
+
+    // --- THEN ---
+    
+    // 1. PC should be at $1003 (The instruction after JSR)
+    EXPECT_EQ(cpu.PC, 0x1003);
+    
+    // 2. Stack Pointer should be back to $FF
+    EXPECT_EQ(cpu.SP, 0xFF);
+    
+    // 3. Timing Check
+    EXPECT_EQ(cyclesRTS, 6);
+
+    // 4. Verify we can continue executing
+    execute(&cpu); // Executes LDX #$42
+    EXPECT_EQ(cpu.X, 0x42);
+}
+
+TEST_F(ace64Test, RTIReturnTest) {
+    // --- GIVEN ---
+    // We want to return to $4000 with Negative and Carry flags set.
+    cpu.SP = 0xFC;
+    cpu.Memory[0x01FD] = FLAG_NEGATIVE | FLAG_CARRY; // Status (P) at $01FD
+    cpu.Memory[0x01FE] = 0x00;                       // PCL at $01FE
+    cpu.Memory[0x01FF] = 0x40;                       // PCH at $01FF
+    
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x40; // RTI Opcode
+    
+    // --- WHEN ---
+    Sint32 cyclesUsed = execute(&cpu);
+
+    // --- THEN ---
+    // 1. PC should be exactly $4000
+    EXPECT_EQ(cpu.PC, 0x4000);
+    
+    // 2. Flags should be restored (including the mandatory bit 5)
+    EXPECT_EQ(cpu.P, FLAG_NEGATIVE | FLAG_CARRY | 0x20);
+    
+    // 3. Stack Pointer should be back to $FF
+    EXPECT_EQ(cpu.SP, 0xFF);
+    
+    // 4. Timing: RTI is 6 cycles
+    EXPECT_EQ(cyclesUsed, 6);
+}
+
+TEST_F(ace64Test, ADC_Simple) {
+    // Case A: 10 + 10 = 20
+    cpu.A = 10;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x69; // ADC Immediate
+    cpu.Memory[0x1001] = 10;
+    cpu.P = 0; // Carry is 0
+
+    execute(&cpu);
+    EXPECT_EQ(cpu.A, 20);
+    EXPECT_FALSE(cpu.P & FLAG_CARRY);
+
+}
+
+TEST_F(ace64Test, ADC_Carry) {
+  
+    // Case B: 255 + 1 = 0 (Carry set)
+    cpu.PC = 0x1000;
+    cpu.A = 0xFF;
+    cpu.Memory[0x1000] = 0x69;
+    cpu.Memory[0x1001] = 0x01;
+
+    execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x00);
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);
+    EXPECT_TRUE(cpu.P & FLAG_ZERO);
+}
+
+TEST_F(ace64Test, ADC_OverflowPositive) {
+    cpu.A = 0x40; // 64
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x69;
+    cpu.Memory[0x1001] = 0x40; // 64
+    cpu.P = 0;
+
+    execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x80);
+    EXPECT_TRUE(cpu.P & FLAG_OVERFLOW); // V set because result sign flipped
+    EXPECT_TRUE(cpu.P & FLAG_NEGATIVE);  // Result bit 7 is 1
+    EXPECT_FALSE(cpu.P & FLAG_CARRY);   // No unsigned carry
+}
+
+TEST_F(ace64Test, ADC_OverflowNegative) {
+    cpu.A = 0x80; // -128
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x69;
+    cpu.Memory[0x1001] = 0xFF; // -1
+    cpu.P = 0;
+
+    execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x7F);             // Result wrapped
+    EXPECT_TRUE(cpu.P & FLAG_OVERFLOW); // V set
+    EXPECT_FALSE(cpu.P & FLAG_NEGATIVE);// Result bit 7 is 0
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);    // Unsigned carry occurred
+}
+
+TEST_F(ace64Test, ADC_WithCarryIn) {
+    cpu.A = 10;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x69;
+    cpu.Memory[0x1001] = 10;
+    cpu.P = 0; // Initial carry is 1
+    set_flag(&cpu.P, FLAG_CARRY);
+
+    execute(&cpu);
+    EXPECT_EQ(cpu.A, 21);
+}
+
+TEST_F(ace64Test, ADCDecimalBasic) {
+    // Case A: 9 + 1 = 10 (BCD)
+    cpu.P = FLAG_DECIMAL_MODE; // Carry is 0
+    cpu.A = 0x09;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0x69; // ADC Immediate
+    cpu.Memory[0x1001] = 0x01;
+
+    execute(&cpu);
+    EXPECT_EQ(cpu.A, 0x10);
+    EXPECT_FALSE(cpu.P & FLAG_CARRY);
+
+    // Case B: 99 + 1 = 00 (Carry 1)
+    cpu.PC = 0x1000;
+    cpu.A = 0x99;
+    cpu.Memory[0x1001] = 0x01;
+    execute(&cpu);
+    EXPECT_EQ(cpu.A, 0x00);
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);
+}
+
+TEST_F(ace64Test, SBCDecimalBasic) {
+    // Case A: 10 - 1 = 09
+    cpu.P = FLAG_DECIMAL_MODE | FLAG_CARRY; // C=1 means NO Borrow
+    cpu.A = 0x10;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1000] = 0xE9; // SBC Immediate
+    cpu.Memory[0x1001] = 0x01;
+
+    execute(&cpu);
+    EXPECT_EQ(cpu.A, 0x09);
+    EXPECT_TRUE(cpu.P & FLAG_CARRY); // No borrow occurred
+
+    // Case B: 00 - 1 = 99 (Borrow)
+    cpu.PC = 0x1000;
+    cpu.A = 0x00;
+    cpu.Memory[0x1001] = 0x01;
+    cpu.P = FLAG_DECIMAL_MODE | FLAG_CARRY;
+    
+    execute(&cpu);
+    EXPECT_EQ(cpu.A, 0x99);
+    EXPECT_FALSE(cpu.P & FLAG_CARRY); // Borrow occurred
+}
+
+TEST_F(ace64Test, ADCDecimalFlagQuirk) {
+    // Math: $50 + $50 = $100 (BCD)
+    // Binary Math: $50 + $50 = $A0 (Negative bit set)
+    cpu.P = FLAG_DECIMAL_MODE;
+    cpu.A = 0x50;
+    cpu.PC = 0x1000;
+    cpu.Memory[0x1001] = 0x50;
+
+    execute(&cpu);
+
+    EXPECT_EQ(cpu.A, 0x00);          // BCD result $50+$50 = $00 (carry 1)
+    EXPECT_TRUE(cpu.P & FLAG_CARRY);
+    EXPECT_TRUE(cpu.P & FLAG_OVERFLOW); // Binary $50+$50 = $A0 (Overflow from + to -)
+    EXPECT_TRUE(cpu.P & FLAG_NEGATIVE); // Binary result $A0 has bit 7 set
+}

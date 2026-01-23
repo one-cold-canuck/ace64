@@ -177,17 +177,26 @@ set_status_flag (Byte *flags, Byte value)
   *flags = (*flags & ~FLAG_NEGATIVE) | (value & 0x80 ? FLAG_NEGATIVE : 0);
 }
 
-void set_flag(Byte *flags, Byte flagToSet) {
+void
+set_flag (Byte *flags, Byte flagToSet)
+{
   *flags |= flagToSet;
 }
 
-void clear_flag(Byte *flags, Byte flagToClear) {
+void
+clear_flag (Byte *flags, Byte flagToClear)
+{
   *flags &= ~flagToClear;
 }
 
-Byte get_carry_flag (CPU *cpu)
+Byte
+get_carry_flag (CPU *cpu)
 {
   return (cpu->P & FLAG_CARRY) ? 1 : 0;
+}
+
+Byte get_flag(CPU *cpu, Byte flagToGet) {
+  return (cpu->P & FLAG_CARRY);
 }
 
 Word
